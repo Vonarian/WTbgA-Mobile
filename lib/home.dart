@@ -84,7 +84,6 @@ class Loading extends StatefulWidget {
 class _LoadingState extends State<Loading> {
   Future<void> loadData() async {
     await loadDiskValues();
-    print(userInputOut);
     if (userInputOut == null) return;
     await Navigator.pushReplacementNamed(context, '/home',
         arguments: userInputOut);
@@ -155,14 +154,12 @@ class _LoadingState extends State<Loading> {
                 final SharedPreferences prefs = await _prefs;
                 userInputOut =
                     await Navigator.of(context).push(dialogBuilder(context));
-                print(userInputOut);
                 String _userInputOut = (prefs.getString('userInputOut') ?? '');
 
                 setState(() {
                   _userInputOut = userInputOut!;
                 });
                 prefs.setString("userInputOut", _userInputOut);
-                print(_userInputOut);
                 await Navigator.pushReplacementNamed(context, '/home',
                     arguments: userInputOut);
               },
@@ -234,7 +231,6 @@ class _HomeState extends State<Home> {
                           AwesomeNotifications()
                               .requestPermissionToSendNotifications();
                         }
-                        print(isAllowed);
                       });
                       Navigator.of(context).pop();
                     },
@@ -280,7 +276,6 @@ class _HomeState extends State<Home> {
   void initState() {
     loadInput();
     idData.addListener(() {
-      print('New value');
       isDamageIdNew = true;
     });
     isDamageIdNew = false;
@@ -288,6 +283,7 @@ class _HomeState extends State<Home> {
     Timer.periodic(const Duration(seconds: 1), (timer) async {
       updateData();
       notifications();
+      stallDetector();
     });
   }
 
@@ -295,6 +291,14 @@ class _HomeState extends State<Home> {
   void dispose() {
     idData.removeListener(() => isDamageIdNew = true);
     super.dispose();
+  }
+
+  void stallDetector() {
+    if (aoa != null && critAoa != null && climb != null && aoa! >= -critAoa!) {
+      setState(() {
+        critAoaBool = true;
+      });
+    }
   }
 
   Widget waterText() {
@@ -438,10 +442,7 @@ class _HomeState extends State<Home> {
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
-            : aoa != null &&
-                    critAoa != null &&
-                    climb != null &&
-                    aoa! >= -critAoa!
+            : critAoaBool
                 ? BlinkText('Climb rate = $climb m/s (Stalling!)',
                     duration: const Duration(milliseconds: 200),
                     endColor: Colors.red,
@@ -546,6 +547,7 @@ class _HomeState extends State<Home> {
   String icon = 'assets/app_icon.ico';
   ValueNotifier<int?> idData = ValueNotifier(null);
   bool isDamageIdNew = false;
+  bool critAoaBool = false;
   dynamic serverData;
   @override
   Widget build(BuildContext context) {
