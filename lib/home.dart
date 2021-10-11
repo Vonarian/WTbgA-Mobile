@@ -10,6 +10,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'received_chat.dart';
+
 class ServerData {
   String? vehicleName;
   int? ias;
@@ -22,51 +24,82 @@ class ServerData {
   double? throttle;
   double? engineTemp;
   int? oil;
-  dynamic water;
+  int? water;
   int? altitude;
   int? minFuel;
   int? maxFuel;
   int? gear;
-  ServerData({
-    this.vehicleName,
-    this.ias,
-    this.tas,
-    this.climb,
-    this.damageId,
-    this.damageMsg,
-    this.critAoa,
-    this.minFuel,
-    this.gear,
-    this.water,
-    this.maxFuel,
-    this.oil,
-    this.altitude,
-    this.aoa,
-    this.engineTemp,
-    this.throttle,
-  });
+  int? chatId1;
+  int? chatId2;
+  String? chatMsg1;
+  String? chatMsg2;
+  String? chatMode1;
+  String? chatMode2;
+  String? chatSender1;
+  String? chatSender2;
+  bool? chatEnemy1;
+  bool? chatEnemy2;
+
+  ServerData(
+      {this.vehicleName,
+      this.ias,
+      this.tas,
+      this.climb,
+      this.damageId,
+      this.damageMsg,
+      this.critAoa,
+      this.minFuel,
+      this.gear,
+      this.water,
+      this.maxFuel,
+      this.oil,
+      this.altitude,
+      this.aoa,
+      this.engineTemp,
+      this.throttle,
+      this.chatId1,
+      this.chatId2,
+      this.chatMsg1,
+      this.chatMsg2,
+      this.chatEnemy1,
+      this.chatEnemy2,
+      this.chatMode1,
+      this.chatMode2,
+      this.chatSender1,
+      this.chatSender2});
 
   static Future<ServerData> getData(ipAddress) async {
     try {
       Response? response = await get(Uri.parse('http://$ipAddress'));
       Map<String, dynamic> data = jsonDecode(response.body);
       return ServerData(
-          vehicleName: data['vehicleName'],
-          ias: data['ias'],
-          tas: data['tas'],
-          climb: data['climb'],
-          damageId: data['damageId'],
-          damageMsg: data['damageMsg'],
-          critAoa: data['critAoa'],
-          aoa: data['aoa'],
-          throttle: double.tryParse(data['throttle']),
-          altitude: data['altitude'],
-          engineTemp: data['engineTemp'],
-          gear: data['gear'],
-          maxFuel: data['maxFuel'],
-          minFuel: data['minFuel'],
-          oil: data['oil'],
-          water: data['water']);
+        vehicleName: data['vehicleName'],
+        ias: data['ias'],
+        tas: data['tas'],
+        climb: data['climb'],
+        damageId: data['damageId'],
+        damageMsg: data['damageMsg'],
+        critAoa: data['critAoa'],
+        aoa: data['aoa'],
+        throttle: double.tryParse(data['throttle']),
+        altitude: data['altitude'],
+        engineTemp: data['engineTemp'],
+        gear: data['gear'],
+        maxFuel: data['maxFuel'],
+        minFuel: data['minFuel'],
+        oil: data['oil'],
+        water: data['water'],
+        chatId1: data['chatId1'],
+        chatId2: data['chatId2'],
+        chatMsg1: data['chat1'],
+        chatMsg2: data['chat2'],
+        chatEnemy1: data['chatEnemy1'],
+        chatEnemy2: data['chatEnemy2'],
+        chatMode1: data['chatMode1'],
+        chatMode2: data['chatMode2'],
+        chatSender1: data['chatSender1'],
+        chatSender2: data['chatSender2'],
+      );
     } catch (e, stackTrace) {
       log('Encountered error: $e', stackTrace: stackTrace);
       rethrow;
@@ -84,9 +117,10 @@ class Loading extends StatefulWidget {
 class _LoadingState extends State<Loading> {
   Future<void> loadData() async {
     await loadDiskValues();
-    if (userInputOut == null) return;
-    await Navigator.pushReplacementNamed(context, '/home',
-        arguments: userInputOut);
+    if (userInputOut != '' && userInputOut != null) {
+      await Navigator.pushReplacementNamed(context, '/home',
+          arguments: userInputOut);
+    }
   }
 
   dynamic serverData;
@@ -96,11 +130,9 @@ class _LoadingState extends State<Loading> {
     loadData();
   }
 
-  loadDiskValues() {
-    _prefs.then((SharedPreferences prefs) async {
+  loadDiskValues() async {
+    await _prefs.then((SharedPreferences prefs) async {
       userInputOut = (prefs.getString('userInputOut') ?? '');
-      await Navigator.pushReplacementNamed(context, '/home',
-          arguments: userInputOut);
     });
   }
 
@@ -205,6 +237,20 @@ class _HomeState extends State<Home> {
       throttle = serverData.throttle;
       vehicleName = serverData.vehicleName;
       climb = serverData.climb;
+      chatId1 = serverData.chatId1;
+      chatId2 = serverData.chatId2;
+      chatMessage1 = serverData.chatMsg1;
+      chatMessage2 = serverData.chatMsg2;
+      // if (chatList.isNotEmpty) {
+      //   chatList.removeAt(0);
+      //   if (chatList.length > 1) {
+      //     chatList.removeLast();
+      //   }
+      // }
+      // if (chatMessageFirst != 'No Data') {
+      //   chatList.add(chatMessageFirst);
+      //   chatList.add(chatMessageSecond);
+      // }
     });
   }
 
@@ -267,6 +313,10 @@ class _HomeState extends State<Home> {
   }
 
   Future<void> loadInput() async {
+    await _prefs.then((SharedPreferences prefs) async {
+      userInputInHome = (prefs.getString('userInputInHome') ?? '');
+    });
+    if (userInputInHome != '' && userInputInHome != null) return;
     WidgetsBinding.instance!.addPostFrameCallback((_) {
       userInputInHome = ModalRoute.of(context)?.settings.arguments;
     });
@@ -274,6 +324,7 @@ class _HomeState extends State<Home> {
 
   @override
   void initState() {
+    chatSettingsManager();
     loadInput();
     idData.addListener(() {
       isDamageIdNew = true;
@@ -284,6 +335,7 @@ class _HomeState extends State<Home> {
       updateData();
       notifications();
       stallDetector();
+      chatSettingsManager();
     });
   }
 
@@ -333,6 +385,42 @@ class _HomeState extends State<Home> {
               )
             : const Text(
                 'No Data for Water temperature',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ));
+  }
+
+  Widget throttleText() {
+    return Container(
+        alignment: Alignment.center,
+        width: MediaQuery.of(context).size.width,
+        decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color.fromRGBO(10, 123, 10, 0.403921568627451),
+                Color.fromRGBO(0, 50, 158, 0.4196078431372549),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: const BorderRadius.all(
+              Radius.circular(20.0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.07),
+                spreadRadius: 4,
+                blurRadius: 7,
+                offset: const Offset(0, 3),
+              )
+            ]),
+        child: throttle != null
+            ? Text(
+                'TAS = $throttle km/h',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              )
+            : const Text(
+                'No Data for throttle',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               ));
   }
@@ -486,6 +574,57 @@ class _HomeState extends State<Home> {
     );
   }
 
+  Widget fuelIndicator() {
+    double? fuelPercent;
+    if (minFuel != null && maxFuel != null) {
+      fuelPercent = (minFuel! / maxFuel!) * 100;
+    }
+    return Container(
+        alignment: Alignment.center,
+        width: MediaQuery.of(context).size.width,
+        decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color.fromRGBO(10, 123, 10, 0.403921568627451),
+                Color.fromRGBO(0, 50, 158, 0.4196078431372549),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: const BorderRadius.all(
+              Radius.circular(20.0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.07),
+                spreadRadius: 4,
+                blurRadius: 7,
+                offset: const Offset(0, 3),
+              )
+            ]),
+        child: minFuel != null && fuelPercent! >= 15.00
+            ? Text(
+                'Remaining Fuel = ${fuelPercent.toStringAsFixed(0)}%',
+                textAlign: TextAlign.center,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              )
+            : minFuel != null &&
+                    fuelPercent! < 15.00 &&
+                    (altitude != 32 && minFuel != 0)
+                ? BlinkText(
+                    'Remaining Fuel = ${fuelPercent.toStringAsFixed(0)}%',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 20),
+                    endColor: Colors.red,
+                  )
+                : const Text('No Data.',
+                    textAlign: TextAlign.center,
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 20)));
+  }
+
   Widget drawerBuilder() {
     return Drawer(
       child: Container(
@@ -504,29 +643,101 @@ class _HomeState extends State<Home> {
               ),
             ),
             Container(
-              color: Colors.green,
-              child: Text(
-                'Currently running on $userInputInHome',
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-              ),
-            ),
+                color: Colors.green,
+                child: RichText(
+                  text: TextSpan(
+                    text: 'Server running on: ',
+                    style: const TextStyle(
+                      fontSize: 15,
+                    ),
+                    children: <TextSpan>[
+                      TextSpan(
+                          text: '$userInputInHome',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.red)),
+                    ],
+                  ),
+                )),
             ElevatedButton(
               style: ButtonStyle(
                 backgroundColor: MaterialStateProperty.all<Color>(Colors.green),
               ),
               onPressed: () async {
+                final SharedPreferences prefs = await _prefs;
                 userInputInHome = await Navigator.of(context)
                     .push(dialogBuilderForIP(context));
+                String _userInputInHome =
+                    (prefs.getString('userInputInHome') ?? '');
+                setState(() {
+                  _userInputInHome = userInputInHome!;
+                });
+                prefs.setString("userInputInHome", _userInputInHome);
               },
               child: const Text('Update server IP'),
-            )
+            ),
+            ReceivedMessageScreen(
+              message: chatMessage2,
+              style: TextStyle(color: chatColor1),
+            ),
+            ReceivedMessageScreen(
+              message: chatMessage1,
+              style: chatColor2,
+            ),
           ],
         ),
       ),
     );
   }
 
+  chatSettingsManager() {
+    if (!mounted) return;
+    setState(() {
+      if (chatMode1 == 'All') {
+        chatPrefix1 = '[ALL]';
+      }
+      if (chatMode1 == 'Team') {
+        chatPrefix1 = '[Team]';
+      }
+      if (chatMode1 == 'Squad') {
+        chatPrefix1 = '[Squad]';
+      }
+      if (chatMode1 == null) {
+        chatPrefix1 = null;
+      }
+      if (chatSender1 == null) {
+        chatSender1 == emptyString;
+      }
+      if (chatEnemy1 == true) {
+        chatColor1 = Colors.red;
+      } else {
+        chatColor1 = Colors.lightBlueAccent;
+      }
+    });
+    setState(() {
+      if (chatMode2 == 'All') {
+        chatPrefix2 = '[ALL]';
+      }
+      if (chatMode2 == 'Team') {
+        chatPrefix2 = '[Team]';
+      }
+      if (chatMode2 == 'Squad') {
+        chatPrefix2 = '[Squad]';
+      }
+      if (chatMode2 == null) {
+        chatPrefix2 = null;
+      }
+      if (chatSender2 == null) {
+        chatSender2 == emptyString;
+      }
+      if (chatEnemy2 == true) {
+        chatColor2 = Colors.red;
+      } else {
+        chatColor2 = Colors.lightBlueAccent;
+      }
+    });
+  }
+
+  final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   dynamic userInputInHome;
   int? ias;
   int? tas;
@@ -541,9 +752,24 @@ class _HomeState extends State<Home> {
   int? minFuel;
   int? maxFuel;
   int? gear;
+  String? emptyString = 'No Data';
   String? serverMsg;
   String? vehicleName;
-  String? wifiIP;
+  String? chatMessage1;
+  String? chatMessage2;
+  bool? chatEnemy1;
+  bool? chatEnemy2;
+  int? chatId1;
+  int? chatId2;
+  String? chatSender1;
+  String? chatSender2;
+  String? chatMode1;
+  String? chatMode2;
+  String? chatPrefix1;
+  String? chatPrefix2;
+  Color? chatColor1;
+  Color? chatColor2;
+  // String? wifiIP;
   String icon = 'assets/app_icon.ico';
   ValueNotifier<int?> idData = ValueNotifier(null);
   bool isDamageIdNew = false;
@@ -579,8 +805,10 @@ class _HomeState extends State<Home> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
+              throttleText(),
               iasText(),
               tasText(),
+              fuelIndicator(),
               waterText(),
               climbText(),
             ],
