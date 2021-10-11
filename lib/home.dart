@@ -258,6 +258,7 @@ class _HomeState extends State<Home> {
       // }
       idData.value = serverData.damageId;
     });
+    // print(serverMsg);
   }
 
   static Route<int> dialogBuilder(BuildContext context) {
@@ -322,6 +323,9 @@ class _HomeState extends State<Home> {
     await _prefs.then((SharedPreferences prefs) async {
       userInputInHome = (prefs.getString('userInputInHome') ?? '');
     });
+    await _prefs.then((SharedPreferences prefs) async {
+      lastId = (prefs.getInt('lastId') ?? 0);
+    });
     if (userInputInHome != '' && userInputInHome != null) return;
     WidgetsBinding.instance!.addPostFrameCallback((_) {
       userInputInHome = ModalRoute.of(context)?.settings.arguments;
@@ -337,11 +341,18 @@ class _HomeState extends State<Home> {
   void initState() {
     updateData();
     chatSettingsManager();
-    idData.addListener(() {
-      isDamageIdNew = true;
-      notifications();
-    });
     loadInput();
+    idData.addListener(() async {
+      if (lastId != idData.value) {
+        print('yes');
+        isDamageIdNew = true;
+      }
+      await notifications();
+      SharedPreferences prefs = await _prefs;
+      lastId = (prefs.getInt('lastId') ?? 0);
+      lastId = idData.value;
+      prefs.setInt('lastId', lastId!);
+    });
     isDamageIdNew = false;
     super.initState();
     Timer.periodic(const Duration(seconds: 1), (timer) async {
@@ -353,7 +364,7 @@ class _HomeState extends State<Home> {
 
   @override
   void dispose() {
-    idData.removeListener(() => isDamageIdNew = true);
+    idData.removeListener(() => notifications());
     super.dispose();
   }
 
@@ -547,7 +558,9 @@ class _HomeState extends State<Home> {
                     duration: const Duration(milliseconds: 200),
                     endColor: Colors.red,
                     style: const TextStyle(
-                        fontWeight: FontWeight.bold, fontSize: 20))
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: Colors.black))
                 : const Text(
                     'No Data for climb rate',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
@@ -767,6 +780,7 @@ class _HomeState extends State<Home> {
   int? minFuel;
   int? maxFuel;
   int? gear;
+  int? lastId;
   String? emptyString = 'No Data';
   String? serverMsg;
   String? vehicleName;
