@@ -221,7 +221,6 @@ class _HomeState extends State<Home> {
     if (!mounted) return;
     setState(() {
       serverData = internalServerData;
-      idData.value = serverData.damageId;
       serverMsg = serverData.damageMsg;
       ias = serverData.ias;
       tas = serverData.tas;
@@ -241,6 +240,12 @@ class _HomeState extends State<Home> {
       chatId2 = serverData.chatId2;
       chatMessage1 = serverData.chatMsg1;
       chatMessage2 = serverData.chatMsg2;
+      chatMode1 = serverData.chatMode1;
+      chatMode2 = serverData.chatMode2;
+      chatSender1 = serverData.chatSender1;
+      chatSender2 = serverData.chatSender2;
+      chatEnemy1 = serverData.chatEnemy1;
+      chatEnemy2 = serverData.chatEnemy2;
       // if (chatList.isNotEmpty) {
       //   chatList.removeAt(0);
       //   if (chatList.length > 1) {
@@ -251,6 +256,7 @@ class _HomeState extends State<Home> {
       //   chatList.add(chatMessageFirst);
       //   chatList.add(chatMessageSecond);
       // }
+      idData.value = serverData.damageId;
     });
   }
 
@@ -322,18 +328,24 @@ class _HomeState extends State<Home> {
     });
   }
 
+  loadListenable() {
+    ValueNotifier<int?> idData = ValueNotifier(null);
+    return idData;
+  }
+
   @override
   void initState() {
+    updateData();
     chatSettingsManager();
-    loadInput();
     idData.addListener(() {
       isDamageIdNew = true;
+      notifications();
     });
+    loadInput();
     isDamageIdNew = false;
     super.initState();
     Timer.periodic(const Duration(seconds: 1), (timer) async {
       updateData();
-      notifications();
       stallDetector();
       chatSettingsManager();
     });
@@ -415,7 +427,7 @@ class _HomeState extends State<Home> {
             ]),
         child: throttle != null
             ? Text(
-                'TAS = $throttle km/h',
+                'Throttle = ${(throttle! * 100).toStringAsFixed(0)}%',
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
@@ -676,12 +688,14 @@ class _HomeState extends State<Home> {
               child: const Text('Update server IP'),
             ),
             ReceivedMessageScreen(
-              message: chatMessage2,
-              style: TextStyle(color: chatColor1),
+              chatSender: chatSender2,
+              message: '$chatPrefix2 $chatMessage2',
+              style: TextStyle(color: chatColor2),
             ),
             ReceivedMessageScreen(
-              message: chatMessage1,
-              style: chatColor2,
+              chatSender: chatSender1,
+              message: '$chatPrefix1 $chatMessage1',
+              style: TextStyle(color: chatColor1),
             ),
           ],
         ),
@@ -737,6 +751,7 @@ class _HomeState extends State<Home> {
     });
   }
 
+  bool? isAllowed;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   dynamic userInputInHome;
   int? ias;
@@ -770,13 +785,15 @@ class _HomeState extends State<Home> {
   Color? chatColor1;
   Color? chatColor2;
   // String? wifiIP;
-  String icon = 'assets/app_icon.ico';
+  // String icon = 'assets/app_icon.ico';
+  int? idDataSaver;
   ValueNotifier<int?> idData = ValueNotifier(null);
   bool isDamageIdNew = false;
   bool critAoaBool = false;
   dynamic serverData;
   @override
   Widget build(BuildContext context) {
+    updateData();
     return SafeArea(
       child: Scaffold(
         drawer: Builder(builder: (context) {

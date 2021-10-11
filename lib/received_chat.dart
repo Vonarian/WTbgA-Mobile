@@ -2,15 +2,17 @@ import 'dart:math' as math; // import this
 
 import 'package:flutter/material.dart';
 
-import 'custom_page.dart';
+import 'custom_shape.dart';
 
 class ReceivedMessageScreen extends StatelessWidget {
   final String? message;
+  final String? chatSender;
   final dynamic style;
   const ReceivedMessageScreen({
     Key? key,
     this.message,
     this.style,
+    this.chatSender,
   }) : super(key: key);
 
   @override
@@ -38,7 +40,15 @@ class ReceivedMessageScreen extends StatelessWidget {
                 bottomRight: Radius.circular(18),
               ),
             ),
-            child: Text(message!, style: style),
+            child: Column(
+              children: [
+                Text(chatSender!, style: style),
+                Text(
+                  message!,
+                  style: const TextStyle(color: Colors.black),
+                ),
+              ],
+            ),
           ),
         ),
       ],
