@@ -1,5 +1,6 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
+import 'package:wtbgamobile/screens/image_state.dart';
 import 'package:wtbgamobile/screens/loading.dart';
 import 'package:wtbgamobile/screens/splash.dart';
 
@@ -34,7 +35,8 @@ Future<void> main() async {
     routes: {
       splash: (context) => const Splash(),
       loading: (context) => const Loading(),
-      home: (context) => const Home()
+      home: (context) => const Home(),
+      '/background': (context) => const ImageState(),
     },
   ));
 }

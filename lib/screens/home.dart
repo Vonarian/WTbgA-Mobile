@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:blinking_text/blinking_text.dart';
@@ -17,15 +19,18 @@ class Home extends StatefulWidget {
 }
 
 class _HomeState extends State<Home> {
+  saveFileFromBase64String(String path, String base64String) =>
+      File(path).writeAsBytes(base64Decode(base64String));
+
   Future<void> updateData() async {
     if (userInputInHome == null || userInputInHome == '') return;
     // final WifiInfo _wifiInfo = WifiInfo();
     // String? wifiInfo;
     // wifiInfo = await _wifiInfo.getWifiIP();
     // print(wifiInfo);
+    if (!mounted) return;
     ServerData internalServerData =
         await ServerData.getData(userInputInHome ?? '');
-    if (!mounted) return;
     setState(() {
       serverData = internalServerData;
       serverMsg = serverData.damageMsg;
@@ -65,39 +70,40 @@ class _HomeState extends State<Home> {
       // }
       idData.value = serverData.damageId;
     });
+
     // print(serverMsg);
   }
 
-  static Route<int> dialogBuilder(BuildContext context) {
-    return DialogRoute(
-        context: context,
-        builder: (BuildContext context) => AlertDialog(
-              content: const Text('Allow notification access?'),
-              title: const Text('Notifications permission request '),
-              actions: [
-                ElevatedButton(
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
-                    child: const Text('Cancel')),
-                ElevatedButton(
-                    onPressed: () {
-                      AwesomeNotifications()
-                          .isNotificationAllowed()
-                          .then((isAllowed) {
-                        if (!isAllowed) {
-                          // Insert here your friendly dialog box before call the request method
-                          // This is very important to not harm the user experience
-                          AwesomeNotifications()
-                              .requestPermissionToSendNotifications();
-                        }
-                      });
-                      Navigator.of(context).pop();
-                    },
-                    child: const Text('Allow'))
-              ],
-            ));
-  }
+  // static Route<int> dialogBuilder(BuildContext context) {
+  //   return DialogRoute(
+  //       context: context,
+  //       builder: (BuildContext context) => AlertDialog(
+  //             content: const Text('Allow notification access?'),
+  //             title: const Text('Notifications permission request '),
+  //             actions: [
+  //               ElevatedButton(
+  //                   onPressed: () {
+  //                     Navigator.pop(context);
+  //                   },
+  //                   child: const Text('Cancel')),
+  //               ElevatedButton(
+  //                   onPressed: () {
+  //                     AwesomeNotifications()
+  //                         .isNotificationAllowed()
+  //                         .then((isAllowed) {
+  //                       if (!isAllowed) {
+  //                         // Insert here your friendly dialog box before call the request method
+  //                         // This is very important to not harm the user experience
+  //                         AwesomeNotifications()
+  //                             .requestPermissionToSendNotifications();
+  //                       }
+  //                     });
+  //                     Navigator.of(context).pop();
+  //                   },
+  //                   child: const Text('Allow'))
+  //             ],
+  //           ));
+  // }
 
   Future<void> notifications() async {
     if (isDamageIdNew && serverData.damageMsg == 'Engine overheated') {
@@ -109,9 +115,6 @@ class _HomeState extends State<Home> {
               title: 'Engine Overheated!',
               body: 'Engine is overheating'));
       isDamageIdNew = false;
-      AwesomeNotifications().actionStream.listen((receivedNotification) async {
-        await Navigator.of(context).pushReplacementNamed('/home');
-      });
     }
     if (isDamageIdNew && serverMsg == 'Oil overheated') {
       AwesomeNotifications().createNotification(
@@ -122,9 +125,36 @@ class _HomeState extends State<Home> {
               title: 'Oil Overheated!',
               body: 'Oil is overheating'));
       isDamageIdNew = false;
-      AwesomeNotifications().actionStream.listen((receivedNotification) async {
-        await Navigator.of(context).pushReplacementNamed('/home');
-      });
+    }
+    if (isDamageIdNew && serverMsg == "Engine died: no fuel") {
+      AwesomeNotifications().createNotification(
+          content: NotificationContent(
+              icon: 'resource://drawable/logo',
+              id: 2,
+              channelKey: 'basic_channel',
+              title: 'Engine died!',
+              body: 'Engine ran out of fuel and died.'));
+      isDamageIdNew = false;
+    }
+    if (isDamageIdNew && serverMsg == "Engine died: overheating") {
+      AwesomeNotifications().createNotification(
+          content: NotificationContent(
+              icon: 'resource://drawable/logo',
+              id: 2,
+              channelKey: 'basic_channel',
+              title: 'Engine died!',
+              body: 'Engine died due to overheating'));
+      isDamageIdNew = false;
+    }
+    if (isDamageIdNew && serverMsg == "Engine died: propeller broken") {
+      AwesomeNotifications().createNotification(
+          content: NotificationContent(
+              icon: 'resource://drawable/logo',
+              id: 2,
+              channelKey: 'basic_channel',
+              title: 'Engine died!',
+              body: 'Engine died due to propeller damage'));
+      isDamageIdNew = false;
     }
   }
 
@@ -171,8 +201,25 @@ class _HomeState extends State<Home> {
     super.dispose();
   }
 
+  // Future<void> setImage() async {
+  //   Directory? appDocDirectory = await getExternalStorageDirectory();
+  //   Directory(appDocDirectory!.path + '/' + 'dir').create(recursive: true);
+  //   if (imageData != 'null') {
+  //     dynamic image = await saveFileFromBase64String(
+  //         '${appDocDirectory.path}.png', imageData);
+  //
+  //     setState(() {
+  //       imageOut = image;
+  //       imageNotNull = true;
+  //     });
+  //   } else {
+  //     imageNotNull = false;
+  //   }
+  // }
+
   void stallDetector() {
     if (aoa != null && critAoa != null && climb != null && aoa! >= -critAoa!) {
+      if (!mounted) return;
       setState(() {
         critAoaBool = true;
       });
@@ -601,54 +648,60 @@ class _HomeState extends State<Home> {
   String? chatPrefix2;
   Color? chatColor1;
   Color? chatColor2;
+  dynamic imageData;
+  dynamic imageOut;
   // String? wifiIP;
   // String icon = 'assets/app_icon.ico';
   int? idDataSaver;
   ValueNotifier<int?> idData = ValueNotifier(null);
   bool isDamageIdNew = false;
   bool critAoaBool = false;
+  bool imageNotNull = false;
   dynamic serverData;
   @override
   Widget build(BuildContext context) {
     updateData();
     return SafeArea(
-      child: Scaffold(
-        drawer: Builder(builder: (context) {
-          return drawerBuilder();
-        }),
-        backgroundColor: Colors.blueGrey,
-        appBar: AppBar(
-          actions: [
-            IconButton(
-              onPressed: () async {
-                await Navigator.of(context).push(dialogBuilder(context));
-              },
-              icon: const Icon(Icons.notifications),
-            )
-          ],
-          backgroundColor: Colors.black45,
-          centerTitle: true,
-          title: vehicleName != 'NULL' && vehicleName != null
-              ? Text(
-                  'You are flying $vehicleName',
-                  style: const TextStyle(fontSize: 18),
-                )
-              : const Text('You are not flying'),
-        ),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              throttleText(),
-              iasText(),
-              tasText(),
-              fuelIndicator(),
-              waterText(),
-              climbText(),
+      child: Stack(children: [
+        Scaffold(
+          drawer: Builder(builder: (context) {
+            return drawerBuilder();
+          }),
+          backgroundColor: Colors.transparent,
+          appBar: AppBar(
+            actions: [
+              IconButton(
+                onPressed: () async {
+                  Navigator.pushReplacementNamed(context, '/background',
+                      arguments: userInputInHome);
+                },
+                icon: const Icon(Icons.image),
+              )
             ],
+            backgroundColor: Colors.black45,
+            centerTitle: true,
+            title: vehicleName != 'NULL' && vehicleName != null
+                ? Text(
+                    'You are flying $vehicleName',
+                    style: const TextStyle(fontSize: 18),
+                  )
+                : const Text('You are not flying'),
           ),
-        ),
-      ),
+          body: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                throttleText(),
+                iasText(),
+                tasText(),
+                fuelIndicator(),
+                waterText(),
+                climbText(),
+              ],
+            ),
+          ),
+        )
+      ]),
     );
   }
 }

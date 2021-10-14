@@ -2,7 +2,7 @@
     package="com.example.wtbgamobile">
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="wtbgamobile"
+        android:label="WTbgA"
         android:icon="@mipmap/ic_launcher">
         <activity
             android:name=".MainActivity"

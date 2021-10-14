@@ -30,6 +30,8 @@ class ServerData {
   String? chatSender2;
   bool? chatEnemy1;
   bool? chatEnemy2;
+  bool? active;
+  dynamic image;
 
   ServerData(
       {this.vehicleName,
@@ -57,40 +59,42 @@ class ServerData {
       this.chatMode1,
       this.chatMode2,
       this.chatSender1,
-      this.chatSender2});
-
+      this.chatSender2,
+      required this.image,
+      this.active});
   static Future<ServerData> getData(ipAddress) async {
     try {
       Response? response = await get(Uri.parse('http://$ipAddress'));
       Map<String, dynamic> data = jsonDecode(response.body);
       return ServerData(
-        vehicleName: data['vehicleName'],
-        ias: data['ias'],
-        tas: data['tas'],
-        climb: data['climb'],
-        damageId: data['damageId'],
-        damageMsg: data['damageMsg'],
-        critAoa: data['critAoa'],
-        aoa: data['aoa'],
-        throttle: double.tryParse(data['throttle']),
-        altitude: data['altitude'],
-        engineTemp: data['engineTemp'],
-        gear: data['gear'],
-        maxFuel: data['maxFuel'],
-        minFuel: data['minFuel'],
-        oil: data['oil'],
-        water: data['water'],
-        chatId1: data['chatId1'],
-        chatId2: data['chatId2'],
-        chatMsg1: data['chat1'],
-        chatMsg2: data['chat2'],
-        chatEnemy1: data['chatEnemy1'],
-        chatEnemy2: data['chatEnemy2'],
-        chatMode1: data['chatMode1'],
-        chatMode2: data['chatMode2'],
-        chatSender1: data['chatSender1'],
-        chatSender2: data['chatSender2'],
-      );
+          vehicleName: data['vehicleName'],
+          ias: data['ias'],
+          tas: data['tas'],
+          climb: data['climb'],
+          damageId: data['damageId'],
+          damageMsg: data['damageMsg'],
+          critAoa: data['critAoa'],
+          aoa: data['aoa'],
+          throttle: double.tryParse(data['throttle']),
+          altitude: data['altitude'],
+          engineTemp: data['engineTemp'],
+          gear: data['gear'],
+          maxFuel: data['maxFuel'],
+          minFuel: data['minFuel'],
+          oil: data['oil'],
+          water: data['water'],
+          chatId1: data['chatId1'],
+          chatId2: data['chatId2'],
+          chatMsg1: data['chat1'],
+          chatMsg2: data['chat2'],
+          chatEnemy1: data['chatEnemy1'],
+          chatEnemy2: data['chatEnemy2'],
+          chatMode1: data['chatMode1'],
+          chatMode2: data['chatMode2'],
+          chatSender1: data['chatSender1'],
+          chatSender2: data['chatSender2'],
+          image: data['image'],
+          active: data['active']);
     } catch (e, stackTrace) {
       log('Encountered error: $e', stackTrace: stackTrace);
       rethrow;

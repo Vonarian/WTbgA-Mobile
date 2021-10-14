@@ -1,3 +1,4 @@
+import 'package:blinking_text/blinking_text.dart';
 import 'package:flutter/material.dart';
 
 class Splash extends StatelessWidget {
@@ -10,9 +11,27 @@ class Splash extends StatelessWidget {
     });
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         title: Text('App made by VonarianTheGreat'),
       ),
-      body: Image.asset('assets/splash.gif'),
+      body: Stack(
+        children: [
+          Center(
+              child: BlinkText(
+            'Loading',
+            duration: Duration(milliseconds: 1400),
+            style: TextStyle(color: Colors.red),
+          )),
+          Center(
+              child: SizedBox(
+            height: 200,
+            width: 200,
+            child: CircularProgressIndicator(
+              backgroundColor: Colors.red,
+            ),
+          ))
+        ],
+      ),
     );
   }
 }
