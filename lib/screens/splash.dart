@@ -19,7 +19,7 @@ class Splash extends StatelessWidget {
           Center(
               child: BlinkText(
             'Loading',
-            duration: Duration(milliseconds: 1400),
+            duration: Duration(milliseconds: 600),
             style: TextStyle(color: Colors.red),
           )),
           Center(

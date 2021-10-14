@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 // import 'dart:typed_data';
 
@@ -28,50 +27,42 @@ class _ImageStateState extends State<ImageState> {
     });
   }
 
-  bool imageNotNull = false;
-  dynamic serverData;
-  String? ipAdd;
-  bool active = false;
-  // dynamic imageOut;
-  dynamic imageData;
   @override
   void initState() {
-    startServer();
-    WidgetsBinding.instance!.addPostFrameCallback((_) {
-      ipAdd = ModalRoute.of(context)!.settings.arguments as String?;
+    if (!mounted) return;
+    WidgetsBinding.instance!.addPostFrameCallback((_) async {
+      final arguments = ModalRoute.of(context)!.settings.arguments as Map;
+      print('${arguments['state']} is state in image');
+      serverInfo = arguments['server'];
+      ipAdd = arguments['input'];
+      state = arguments['state'];
+      setState(() {});
     });
     loadData();
     Timer.periodic(const Duration(milliseconds: 4500), (timer) async {
       loadData();
+      // print(serverInfo);
     });
     super.initState();
-  }
-
-  Future<void> startServer() async {
-    var server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
-    print("Server running on IP : " +
-        server.address.toString() +
-        " On Port : " +
-        server.port.toString());
-    await for (var request in server) {
-      print(server.address.toString());
-      request.response
-        ..headers.contentType =
-            new ContentType("text", "plain", charset: "utf-8")
-        ..write('Hello, world')
-        ..close();
-    }
   }
 
   @override
   void dispose() {
     super.dispose();
   }
+
   // setImage() {
   //   print('setImage ran');
   //   if (!mounted) return;
   // }
-
+  var serverInfo;
+  bool imageNotNull = false;
+  dynamic serverData;
+  String? ipAdd;
+  bool active = false;
+  // dynamic imageOut;
+  dynamic imageData;
+  String? state;
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -89,6 +80,16 @@ class _ImageStateState extends State<ImageState> {
                     )
                   : Scaffold(
                       appBar: AppBar(
+                        leading: IconButton(
+                          icon: Icon(Icons.arrow_back_outlined),
+                          onPressed: () async {
+                            state = 'home';
+                            await Navigator.pushReplacementNamed(
+                                context, '/home',
+                                arguments: {'state': state});
+                          },
+                        ),
+                        automaticallyImplyLeading: false,
                         centerTitle: true,
                         title: Text('Data Loading Failed'),
                       ),
@@ -96,11 +97,11 @@ class _ImageStateState extends State<ImageState> {
                         children: [
                           Center(
                               child: BlinkText(
-                            'Unable to load data!',
-                            duration: Duration(seconds: 0),
+                            'Enable stream mode',
+                            duration: Duration(seconds: 1),
                             style: TextStyle(
                                 color: Colors.red,
-                                fontSize: 22,
+                                fontSize: 21,
                                 fontWeight: FontWeight.bold),
                           )),
                           Center(

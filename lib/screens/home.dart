@@ -7,18 +7,19 @@ import 'package:blinking_text/blinking_text.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wtbgamobile/chat_data/received_chat.dart';
 import 'package:wtbgamobile/data_receiver/serverdata.dart';
 
-class Home extends StatefulWidget {
+class Home extends ConsumerStatefulWidget {
   const Home({Key? key}) : super(key: key);
 
   @override
   _HomeState createState() => _HomeState();
 }
 
-class _HomeState extends State<Home> {
+class _HomeState extends ConsumerState<Home> {
   saveFileFromBase64String(String path, String base64String) =>
       File(path).writeAsBytes(base64Decode(base64String));
 
@@ -166,16 +167,21 @@ class _HomeState extends State<Home> {
       lastId = (prefs.getInt('lastId') ?? 0);
     });
     if (userInputInHome != '' && userInputInHome != null) return;
-    WidgetsBinding.instance!.addPostFrameCallback((_) {
-      userInputInHome = ModalRoute.of(context)?.settings.arguments;
+    WidgetsBinding.instance!.addPostFrameCallback((_) async {
+      final arguments = ModalRoute.of(context)!.settings.arguments as Map;
+      userInputInHome = arguments['input'];
+      print(arguments['state']);
     });
   }
 
   @override
   void initState() {
+    state = 'home';
+    if (!mounted) return;
+    loadInput();
+    startServer();
     updateData();
     chatSettingsManager();
-    loadInput();
     idData.addListener(() async {
       if (lastId != idData.value) {
         isDamageIdNew = true;
@@ -192,6 +198,7 @@ class _HomeState extends State<Home> {
       updateData();
       stallDetector();
       chatSettingsManager();
+      giveIps();
     });
   }
 
@@ -533,6 +540,22 @@ class _HomeState extends State<Home> {
                     ],
                   ),
                 )),
+            Container(
+                color: Colors.green,
+                child: RichText(
+                  text: TextSpan(
+                    text: 'Sending data to: ',
+                    style: const TextStyle(
+                      fontSize: 15,
+                    ),
+                    children: <TextSpan>[
+                      TextSpan(
+                          text: '$phoneIP:54338',
+                          style: const TextStyle(
+                              fontWeight: FontWeight.bold, color: Colors.red)),
+                    ],
+                  ),
+                )),
             ElevatedButton(
               style: ButtonStyle(
                 backgroundColor: MaterialStateProperty.all<Color>(Colors.green),
@@ -564,6 +587,17 @@ class _HomeState extends State<Home> {
         ),
       ),
     );
+  }
+
+  String phoneIP = '';
+  Future giveIps() async {
+    for (var interface in await NetworkInterface.list()) {
+      for (var addr in interface.addresses) {
+        phoneIP = addr.address;
+        if (!mounted) return;
+        setState(() {});
+      }
+    }
   }
 
   chatSettingsManager() {
@@ -614,6 +648,20 @@ class _HomeState extends State<Home> {
     });
   }
 
+  startServer() {
+    HttpServer.bind(InternetAddress.anyIPv4, 54338).then((server) {
+      server.listen((HttpRequest request) {
+        Map<String, dynamic> serverData = {'state': state};
+        request.response.write(jsonEncode(serverData));
+        request.response.close();
+        print(serverData);
+      });
+    });
+  }
+
+  String? homeState;
+  String state = 'home';
+  var server;
   bool? isAllowed;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   dynamic userInputInHome;
@@ -660,7 +708,6 @@ class _HomeState extends State<Home> {
   dynamic serverData;
   @override
   Widget build(BuildContext context) {
-    updateData();
     return SafeArea(
       child: Stack(children: [
         Scaffold(
@@ -672,8 +719,12 @@ class _HomeState extends State<Home> {
             actions: [
               IconButton(
                 onPressed: () async {
-                  Navigator.pushReplacementNamed(context, '/background',
-                      arguments: userInputInHome);
+                  state = 'image';
+                  Navigator.pushReplacementNamed(context, '/image', arguments: {
+                    'input': userInputInHome,
+                    'server': server,
+                    'state': state
+                  });
                 },
                 icon: const Icon(Icons.image),
               )

@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -13,7 +16,7 @@ class _LoadingState extends State<Loading> {
     await loadDiskValues();
     if (userInputOut != '' && userInputOut != null) {
       await Navigator.pushReplacementNamed(context, '/home',
-          arguments: userInputOut);
+          arguments: {'input': userInputOut, 'state': 'home'});
     }
   }
 
@@ -62,6 +65,17 @@ class _LoadingState extends State<Loading> {
     );
   }
 
+  void startServer() {
+    HttpServer.bind(InternetAddress.anyIPv4, 54338).then((server) {
+      server.listen((HttpRequest request) {
+        print('data sent');
+        Map<String, dynamic> serverData = {'mounted': mounted};
+        request.response.write(jsonEncode(serverData));
+        request.response.close();
+      });
+    });
+  }
+
   String? userInputOut;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   @override
@@ -86,7 +100,7 @@ class _LoadingState extends State<Loading> {
                 });
                 prefs.setString("userInputOut", _userInputOut);
                 await Navigator.pushReplacementNamed(context, '/home',
-                    arguments: userInputOut);
+                    arguments: {'input': userInputOut, 'state': 'home'});
               },
               icon: const Icon(Icons.cast_connected_outlined)),
         )
