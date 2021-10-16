@@ -3,15 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wtbgamobile/screens/image_state.dart';
 import 'package:wtbgamobile/screens/loading.dart';
-import 'package:wtbgamobile/screens/splash.dart';
 
 import 'screens/home.dart';
 
+StateProvider<String> stateProvider = StateProvider((ref) => 'home');
 String icon = 'assets/app_icon.ico';
 Future<void> main() async {
   const loading = '/loading';
   const home = '/home';
-  const splash = '/splash';
+  // const splash = '/splash';
   AwesomeNotifications().initialize(
       // set the icon to null if you want to use the default app icon
       'resource://drawable/logo',
@@ -33,9 +33,9 @@ Future<void> main() async {
       ),
       themeMode: ThemeMode.dark,
       debugShowCheckedModeBanner: false,
-      initialRoute: splash,
+      initialRoute: loading,
       routes: {
-        splash: (context) => const Splash(),
+        // splash: (context) => const Splash(),
         loading: (context) => const Loading(),
         home: (context) => const Home(),
         '/image': (context) => const ImageState(),

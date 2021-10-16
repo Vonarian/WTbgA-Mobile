@@ -5,26 +5,28 @@ import 'dart:convert';
 
 import 'package:blinking_text/blinking_text.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:wtbgamobile/data_receiver/serverdata.dart';
 
-class ImageState extends StatefulWidget {
+import '../main.dart';
+
+class ImageState extends ConsumerStatefulWidget {
   const ImageState({Key? key}) : super(key: key);
 
   @override
   _ImageStateState createState() => _ImageStateState();
 }
 
-class _ImageStateState extends State<ImageState> {
+class _ImageStateState extends ConsumerState<ImageState> {
   // saveFileFromBase64String(String path, String base64String) =>
   //     File(path).writeAsBytes(base64Decode(base64String));
   Future<void> loadData() async {
+    if (mounted)
+      ipAdd = (ModalRoute.of(context)!.settings.arguments as Map)['input'];
     serverData = await ServerData.getData(ipAdd);
     if (!mounted) return;
     imageData = base64Decode(serverData.image);
     active = serverData.active;
-    setState(() {
-      print('image set');
-    });
   }
 
   @override
@@ -35,7 +37,6 @@ class _ImageStateState extends State<ImageState> {
       print('${arguments['state']} is state in image');
       serverInfo = arguments['server'];
       ipAdd = arguments['input'];
-      state = arguments['state'];
       setState(() {});
     });
     loadData();
@@ -62,7 +63,6 @@ class _ImageStateState extends State<ImageState> {
   bool active = false;
   // dynamic imageOut;
   dynamic imageData;
-  String? state;
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -83,7 +83,8 @@ class _ImageStateState extends State<ImageState> {
                         leading: IconButton(
                           icon: Icon(Icons.arrow_back_outlined),
                           onPressed: () async {
-                            state = 'home';
+                            var state = ref.read(stateProvider);
+                            state.state = 'home';
                             await Navigator.pushReplacementNamed(
                                 context, '/home',
                                 arguments: {'state': state});

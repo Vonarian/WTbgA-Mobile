@@ -3,6 +3,8 @@ import 'dart:developer';
 
 import 'package:http/http.dart';
 
+Map<String, bool> phoneMap = {'phone': true};
+
 class ServerData {
   String? vehicleName;
   int? ias;
@@ -64,7 +66,8 @@ class ServerData {
       this.active});
   static Future<ServerData> getData(ipAddress) async {
     try {
-      Response? response = await get(Uri.parse('http://$ipAddress'));
+      Response? response = await post(Uri.parse('http://$ipAddress'),
+          body: jsonEncode(phoneMap));
       Map<String, dynamic> data = jsonDecode(response.body);
       return ServerData(
           vehicleName: data['vehicleName'],

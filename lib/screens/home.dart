@@ -12,6 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:wtbgamobile/chat_data/received_chat.dart';
 import 'package:wtbgamobile/data_receiver/serverdata.dart';
 
+import '../main.dart';
+
 class Home extends ConsumerStatefulWidget {
   const Home({Key? key}) : super(key: key);
 
@@ -24,90 +26,45 @@ class _HomeState extends ConsumerState<Home> {
       File(path).writeAsBytes(base64Decode(base64String));
 
   Future<void> updateData() async {
-    if (userInputInHome == null || userInputInHome == '') return;
-    // final WifiInfo _wifiInfo = WifiInfo();
-    // String? wifiInfo;
-    // wifiInfo = await _wifiInfo.getWifiIP();
-    // print(wifiInfo);
     if (!mounted) return;
+    var waterTemp = ref.read(waterTempProvider);
+    var oilTemp = ref.read(oilTempProvider);
+    var throttle = ref.read(throttleProvider);
+    var vehicleName = ref.read(vehicleNameProvider);
+    if (userInputInHome == null || userInputInHome == '') return;
     ServerData internalServerData =
         await ServerData.getData(userInputInHome ?? '');
-    setState(() {
-      serverData = internalServerData;
-      serverMsg = serverData.damageMsg;
-      ias = serverData.ias;
-      tas = serverData.tas;
-      critAoa = serverData.critAoa;
-      gear = serverData.gear;
-      minFuel = serverData.minFuel;
-      maxFuel = serverData.maxFuel;
-      oilTemp = serverData.oil;
-      waterTemp = serverData.water;
-      altitude = serverData.altitude;
-      aoa = serverData.aoa;
-      engineTemp = serverData.engineTemp;
-      throttle = serverData.throttle;
-      vehicleName = serverData.vehicleName;
-      climb = serverData.climb;
-      chatId1 = serverData.chatId1;
-      chatId2 = serverData.chatId2;
-      chatMessage1 = serverData.chatMsg1;
-      chatMessage2 = serverData.chatMsg2;
-      chatMode1 = serverData.chatMode1;
-      chatMode2 = serverData.chatMode2;
-      chatSender1 = serverData.chatSender1;
-      chatSender2 = serverData.chatSender2;
-      chatEnemy1 = serverData.chatEnemy1;
-      chatEnemy2 = serverData.chatEnemy2;
-      // if (chatList.isNotEmpty) {
-      //   chatList.removeAt(0);
-      //   if (chatList.length > 1) {
-      //     chatList.removeLast();
-      //   }
-      // }
-      // if (chatMessageFirst != 'No Data') {
-      //   chatList.add(chatMessageFirst);
-      //   chatList.add(chatMessageSecond);
-      // }
-      idData.value = serverData.damageId;
-    });
-
-    // print(serverMsg);
+    oilTemp.state = internalServerData.oil;
+    waterTemp.state = internalServerData.water;
+    throttle.state = internalServerData.throttle;
+    vehicleName.state = internalServerData.vehicleName;
+    serverData = internalServerData;
+    serverMsg = internalServerData.damageMsg;
+    ias = internalServerData.ias;
+    tas = internalServerData.tas;
+    critAoa = internalServerData.critAoa;
+    gear = internalServerData.gear;
+    minFuel = internalServerData.minFuel;
+    maxFuel = internalServerData.maxFuel;
+    altitude = internalServerData.altitude;
+    aoa = internalServerData.aoa;
+    engineTemp = internalServerData.engineTemp;
+    climb = internalServerData.climb;
+    chatId1 = internalServerData.chatId1;
+    chatId2 = internalServerData.chatId2;
+    chatMessage1 = internalServerData.chatMsg1;
+    chatMessage2 = internalServerData.chatMsg2;
+    chatMode1 = internalServerData.chatMode1;
+    chatMode2 = internalServerData.chatMode2;
+    chatSender1 = internalServerData.chatSender1;
+    chatSender2 = internalServerData.chatSender2;
+    chatEnemy1 = internalServerData.chatEnemy1;
+    chatEnemy2 = internalServerData.chatEnemy2;
+    idData.value = internalServerData.damageId;
   }
 
-  // static Route<int> dialogBuilder(BuildContext context) {
-  //   return DialogRoute(
-  //       context: context,
-  //       builder: (BuildContext context) => AlertDialog(
-  //             content: const Text('Allow notification access?'),
-  //             title: const Text('Notifications permission request '),
-  //             actions: [
-  //               ElevatedButton(
-  //                   onPressed: () {
-  //                     Navigator.pop(context);
-  //                   },
-  //                   child: const Text('Cancel')),
-  //               ElevatedButton(
-  //                   onPressed: () {
-  //                     AwesomeNotifications()
-  //                         .isNotificationAllowed()
-  //                         .then((isAllowed) {
-  //                       if (!isAllowed) {
-  //                         // Insert here your friendly dialog box before call the request method
-  //                         // This is very important to not harm the user experience
-  //                         AwesomeNotifications()
-  //                             .requestPermissionToSendNotifications();
-  //                       }
-  //                     });
-  //                     Navigator.of(context).pop();
-  //                   },
-  //                   child: const Text('Allow'))
-  //             ],
-  //           ));
-  // }
-
   Future<void> notifications() async {
-    if (isDamageIdNew && serverData.damageMsg == 'Engine overheated') {
+    if (isDamageIdNew && serverMsg == 'Engine overheated') {
       AwesomeNotifications().createNotification(
           content: NotificationContent(
               icon: 'resource://drawable/logo',
@@ -176,7 +133,8 @@ class _HomeState extends ConsumerState<Home> {
 
   @override
   void initState() {
-    state = 'home';
+    var state = ref.read(stateProvider);
+    state.state = 'home';
     if (!mounted) return;
     loadInput();
     startServer();
@@ -194,11 +152,12 @@ class _HomeState extends ConsumerState<Home> {
     });
     isDamageIdNew = false;
     super.initState();
-    Timer.periodic(const Duration(seconds: 1), (timer) async {
-      updateData();
+    Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (!mounted) return;
       stallDetector();
       chatSettingsManager();
       giveIps();
+      setState(() {});
     });
   }
 
@@ -227,13 +186,12 @@ class _HomeState extends ConsumerState<Home> {
   void stallDetector() {
     if (aoa != null && critAoa != null && climb != null && aoa! >= -critAoa!) {
       if (!mounted) return;
-      setState(() {
-        critAoaBool = true;
-      });
+      critAoaBool = true;
     }
   }
 
   Widget waterText() {
+    var waterTemp = ref.watch(waterTempProvider);
     return Container(
         alignment: Alignment.center,
         width: MediaQuery.of(context).size.width,
@@ -257,9 +215,9 @@ class _HomeState extends ConsumerState<Home> {
                 offset: const Offset(0, 3),
               )
             ]),
-        child: waterTemp != null
+        child: waterTemp.state != null
             ? Text(
-                'Water Temp = $waterTemp degrees',
+                'Water Temp = ${waterTemp.state} degrees',
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
@@ -270,6 +228,8 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Widget throttleText() {
+    var throttle = ref.watch(throttleProvider);
+    // print(throttle.state);
     return Container(
         alignment: Alignment.center,
         width: MediaQuery.of(context).size.width,
@@ -293,9 +253,9 @@ class _HomeState extends ConsumerState<Home> {
                 offset: const Offset(0, 3),
               )
             ]),
-        child: throttle != null
+        child: throttle.state != null
             ? Text(
-                'Throttle = ${(throttle! * 100).toStringAsFixed(0)}%',
+                'Throttle = ${(throttle.state! * 100).toStringAsFixed(0)}%',
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
@@ -457,10 +417,13 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Widget fuelIndicator() {
-    double? fuelPercent;
-    if (minFuel != null && maxFuel != null) {
-      fuelPercent = (minFuel! / maxFuel!) * 100;
-    }
+    var fuelPercent = ref.watch(fuelPercentProvider);
+    Timer.periodic(Duration.zero, (timer) {
+      if (minFuel != null && maxFuel != null) {
+        fuelPercent.state = (minFuel! / maxFuel!) * 100;
+      }
+    });
+
     return Container(
         alignment: Alignment.center,
         width: MediaQuery.of(context).size.width,
@@ -484,18 +447,18 @@ class _HomeState extends ConsumerState<Home> {
                 offset: const Offset(0, 3),
               )
             ]),
-        child: minFuel != null && fuelPercent! >= 15.00
+        child: minFuel != null && fuelPercent.state! >= 15.00
             ? Text(
-                'Remaining Fuel = ${fuelPercent.toStringAsFixed(0)}%',
+                'Remaining Fuel = ${fuelPercent.state!.toStringAsFixed(0)}%',
                 textAlign: TextAlign.center,
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
             : minFuel != null &&
-                    fuelPercent! < 15.00 &&
+                    fuelPercent.state! < 15.00 &&
                     (altitude != 32 && minFuel != 0)
                 ? BlinkText(
-                    'Remaining Fuel = ${fuelPercent.toStringAsFixed(0)}%',
+                    'Remaining Fuel = ${fuelPercent.state!.toStringAsFixed(0)}%',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 20),
@@ -589,78 +552,103 @@ class _HomeState extends ConsumerState<Home> {
     );
   }
 
-  String phoneIP = '';
   Future giveIps() async {
     for (var interface in await NetworkInterface.list()) {
       for (var addr in interface.addresses) {
         phoneIP = addr.address;
         if (!mounted) return;
-        setState(() {});
       }
     }
   }
 
   chatSettingsManager() {
     if (!mounted) return;
-    setState(() {
-      if (chatMode1 == 'All') {
-        chatPrefix1 = '[ALL]';
-      }
-      if (chatMode1 == 'Team') {
-        chatPrefix1 = '[Team]';
-      }
-      if (chatMode1 == 'Squad') {
-        chatPrefix1 = '[Squad]';
-      }
-      if (chatMode1 == null) {
-        chatPrefix1 = null;
-      }
-      if (chatSender1 == null) {
-        chatSender1 == emptyString;
-      }
-      if (chatEnemy1 == true) {
-        chatColor1 = Colors.red;
-      } else {
-        chatColor1 = Colors.lightBlueAccent;
-      }
-    });
-    setState(() {
-      if (chatMode2 == 'All') {
-        chatPrefix2 = '[ALL]';
-      }
-      if (chatMode2 == 'Team') {
-        chatPrefix2 = '[Team]';
-      }
-      if (chatMode2 == 'Squad') {
-        chatPrefix2 = '[Squad]';
-      }
-      if (chatMode2 == null) {
-        chatPrefix2 = null;
-      }
-      if (chatSender2 == null) {
-        chatSender2 == emptyString;
-      }
-      if (chatEnemy2 == true) {
-        chatColor2 = Colors.red;
-      } else {
-        chatColor2 = Colors.lightBlueAccent;
-      }
-    });
+    if (chatMode1 == 'All') {
+      chatPrefix1 = '[ALL]';
+    }
+    if (chatMode1 == 'Team') {
+      chatPrefix1 = '[Team]';
+    }
+    if (chatMode1 == 'Squad') {
+      chatPrefix1 = '[Squad]';
+    }
+    if (chatMode1 == null) {
+      chatPrefix1 = null;
+    }
+    if (chatSender1 == null) {
+      chatSender1 == emptyString;
+    }
+    if (chatEnemy1 == true) {
+      chatColor1 = Colors.red;
+    } else {
+      chatColor1 = Colors.lightBlueAccent;
+    }
+    if (chatMode2 == 'All') {
+      chatPrefix2 = '[ALL]';
+    }
+    if (chatMode2 == 'Team') {
+      chatPrefix2 = '[Team]';
+    }
+    if (chatMode2 == 'Squad') {
+      chatPrefix2 = '[Squad]';
+    }
+    if (chatMode2 == null) {
+      chatPrefix2 = null;
+    }
+    if (chatSender2 == null) {
+      chatSender2 == emptyString;
+    }
+    if (chatEnemy2 == true) {
+      chatColor2 = Colors.red;
+    } else {
+      chatColor2 = Colors.lightBlueAccent;
+    }
+  }
+
+  PreferredSizeWidget appBar(BuildContext context) {
+    var vehicleName = ref.watch(vehicleNameProvider);
+    return AppBar(
+      actions: [
+        IconButton(
+          onPressed: () async {
+            var state = ref.read(stateProvider);
+            state.state = 'image';
+            Navigator.pushReplacementNamed(context, '/image', arguments: {
+              'state': state.state,
+              'input': userInputInHome,
+              'server': server
+            });
+          },
+          icon: const Icon(Icons.image),
+        ),
+      ],
+      backgroundColor: Colors.black45,
+      centerTitle: true,
+      title: vehicleName.state != 'NULL' && vehicleName.state != null
+          ? Text(
+              'You are flying ${vehicleName.state}',
+              style: const TextStyle(fontSize: 18),
+            )
+          : Text('You are not flying'),
+    );
   }
 
   startServer() {
     HttpServer.bind(InternetAddress.anyIPv4, 54338).then((server) {
+      var state = ref.read(stateProvider);
       server.listen((HttpRequest request) {
-        Map<String, dynamic> serverData = {'state': state};
+        Map<String?, dynamic> serverData = {
+          'state': state.state,
+          'active': true
+        };
         request.response.write(jsonEncode(serverData));
         request.response.close();
-        print(serverData);
       });
     });
   }
 
   String? homeState;
-  String state = 'home';
+  String phoneIP = '';
   var server;
   bool? isAllowed;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
@@ -670,10 +658,19 @@ class _HomeState extends ConsumerState<Home> {
   double? climb;
   double? critAoa;
   double? aoa;
-  double? throttle;
   double? engineTemp;
-  int? oilTemp;
-  dynamic waterTemp;
+  StateProvider<double?> fuelPercentProvider = StateProvider<double?>((ref) {
+    return 100;
+  });
+  StateProvider<double?> throttleProvider = StateProvider<double?>((ref) {
+    return null;
+  });
+  StateProvider<int?> oilTempProvider = StateProvider<int?>((ref) {
+    return null;
+  });
+  StateProvider<int?> waterTempProvider = StateProvider<int?>((ref) {
+    return null;
+  });
   int? altitude;
   int? minFuel;
   int? maxFuel;
@@ -681,7 +678,7 @@ class _HomeState extends ConsumerState<Home> {
   int? lastId;
   String? emptyString = 'No Data';
   String? serverMsg;
-  String? vehicleName;
+  var vehicleNameProvider = StateProvider<String?>((ref) => null);
   String? chatMessage1;
   String? chatMessage2;
   bool? chatEnemy1;
@@ -706,6 +703,7 @@ class _HomeState extends ConsumerState<Home> {
   bool critAoaBool = false;
   bool imageNotNull = false;
   dynamic serverData;
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -715,29 +713,7 @@ class _HomeState extends ConsumerState<Home> {
             return drawerBuilder();
           }),
           backgroundColor: Colors.transparent,
-          appBar: AppBar(
-            actions: [
-              IconButton(
-                onPressed: () async {
-                  state = 'image';
-                  Navigator.pushReplacementNamed(context, '/image', arguments: {
-                    'input': userInputInHome,
-                    'server': server,
-                    'state': state
-                  });
-                },
-                icon: const Icon(Icons.image),
-              )
-            ],
-            backgroundColor: Colors.black45,
-            centerTitle: true,
-            title: vehicleName != 'NULL' && vehicleName != null
-                ? Text(
-                    'You are flying $vehicleName',
-                    style: const TextStyle(fontSize: 18),
-                  )
-                : const Text('You are not flying'),
-          ),
+          appBar: appBar(context),
           body: Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
