@@ -26,14 +26,15 @@ class _HomeState extends ConsumerState<Home> {
       File(path).writeAsBytes(base64Decode(base64String));
 
   Future<void> updateData() async {
-    if (!mounted) return;
+    var state = ref.read(stateProvider);
+    if (state.state != 'home') return;
     var waterTemp = ref.read(waterTempProvider);
     var oilTemp = ref.read(oilTempProvider);
     var throttle = ref.read(throttleProvider);
     var vehicleName = ref.read(vehicleNameProvider);
     if (userInputInHome == null || userInputInHome == '') return;
     ServerData internalServerData =
-        await ServerData.getData(userInputInHome ?? '');
+        await ServerData.getData(userInputInHome ?? '', state.state);
     oilTemp.state = internalServerData.oil;
     waterTemp.state = internalServerData.water;
     throttle.state = internalServerData.throttle;
@@ -57,6 +58,7 @@ class _HomeState extends ConsumerState<Home> {
     chatMode1 = internalServerData.chatMode1;
     chatMode2 = internalServerData.chatMode2;
     chatSender1 = internalServerData.chatSender1;
+    chatSender2 = internalServerData.chatSender2;
     chatSender2 = internalServerData.chatSender2;
     chatEnemy1 = internalServerData.chatEnemy1;
     chatEnemy2 = internalServerData.chatEnemy2;
@@ -127,7 +129,6 @@ class _HomeState extends ConsumerState<Home> {
     WidgetsBinding.instance!.addPostFrameCallback((_) async {
       final arguments = ModalRoute.of(context)!.settings.arguments as Map;
       userInputInHome = arguments['input'];
-      print(arguments['state']);
     });
   }
 
@@ -135,9 +136,7 @@ class _HomeState extends ConsumerState<Home> {
   void initState() {
     var state = ref.read(stateProvider);
     state.state = 'home';
-    if (!mounted) return;
     loadInput();
-    startServer();
     updateData();
     chatSettingsManager();
     idData.addListener(() async {
@@ -151,14 +150,14 @@ class _HomeState extends ConsumerState<Home> {
       prefs.setInt('lastId', lastId!);
     });
     isDamageIdNew = false;
-    super.initState();
     Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (!mounted) return;
+      updateData();
       stallDetector();
       chatSettingsManager();
       giveIps();
       setState(() {});
     });
+    super.initState();
   }
 
   @override
@@ -370,7 +369,7 @@ class _HomeState extends ConsumerState<Home> {
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
-            : critAoaBool
+            : critAoaBool && altitude! > 200
                 ? BlinkText('Climb rate = $climb m/s (Stalling!)',
                     duration: const Duration(milliseconds: 200),
                     endColor: Colors.red,
@@ -503,22 +502,6 @@ class _HomeState extends ConsumerState<Home> {
                     ],
                   ),
                 )),
-            Container(
-                color: Colors.green,
-                child: RichText(
-                  text: TextSpan(
-                    text: 'Sending data to: ',
-                    style: const TextStyle(
-                      fontSize: 15,
-                    ),
-                    children: <TextSpan>[
-                      TextSpan(
-                          text: '$phoneIP:54338',
-                          style: const TextStyle(
-                              fontWeight: FontWeight.bold, color: Colors.red)),
-                    ],
-                  ),
-                )),
             ElevatedButton(
               style: ButtonStyle(
                 backgroundColor: MaterialStateProperty.all<Color>(Colors.green),
@@ -536,16 +519,20 @@ class _HomeState extends ConsumerState<Home> {
               },
               child: const Text('Update server IP'),
             ),
-            ReceivedMessageScreen(
-              chatSender: chatSender2,
-              message: '$chatPrefix2 $chatMessage2',
-              style: TextStyle(color: chatColor2),
-            ),
-            ReceivedMessageScreen(
-              chatSender: chatSender1,
-              message: '$chatPrefix1 $chatMessage1',
-              style: TextStyle(color: chatColor1),
-            ),
+            chatSender1 != null
+                ? ReceivedMessageScreen(
+                    chatSender: chatSender2,
+                    message: '$chatPrefix2 $chatMessage2',
+                    style: TextStyle(color: chatColor2),
+                  )
+                : Container(),
+            chatSender2 != null
+                ? ReceivedMessageScreen(
+                    chatSender: chatSender1,
+                    message: '$chatPrefix1 $chatMessage1',
+                    style: TextStyle(color: chatColor1),
+                  )
+                : Container(),
           ],
         ),
       ),
@@ -613,7 +600,7 @@ class _HomeState extends ConsumerState<Home> {
           onPressed: () async {
             var state = ref.read(stateProvider);
             state.state = 'image';
-            Navigator.pushReplacementNamed(context, '/image', arguments: {
+            Navigator.pushNamed(context, '/image', arguments: {
               'state': state.state,
               'input': userInputInHome,
               'server': server
@@ -631,20 +618,6 @@ class _HomeState extends ConsumerState<Home> {
             )
           : Text('You are not flying'),
     );
-  }
-
-  startServer() {
-    HttpServer.bind(InternetAddress.anyIPv4, 54338).then((server) {
-      var state = ref.read(stateProvider);
-      server.listen((HttpRequest request) {
-        Map<String?, dynamic> serverData = {
-          'state': state.state,
-          'active': true
-        };
-        request.response.write(jsonEncode(serverData));
-        request.response.close();
-      });
-    });
   }
 
   String? homeState;

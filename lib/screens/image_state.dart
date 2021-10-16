@@ -21,12 +21,12 @@ class _ImageStateState extends ConsumerState<ImageState> {
   // saveFileFromBase64String(String path, String base64String) =>
   //     File(path).writeAsBytes(base64Decode(base64String));
   Future<void> loadData() async {
-    if (mounted)
-      ipAdd = (ModalRoute.of(context)!.settings.arguments as Map)['input'];
-    serverData = await ServerData.getData(ipAdd);
     if (!mounted) return;
+    var state = ref.read(stateProvider);
+    serverData = await ServerData.getData(ipAdd, state.state);
     imageData = base64Decode(serverData.image);
     active = serverData.active;
+    setState(() {});
   }
 
   @override
@@ -34,12 +34,9 @@ class _ImageStateState extends ConsumerState<ImageState> {
     if (!mounted) return;
     WidgetsBinding.instance!.addPostFrameCallback((_) async {
       final arguments = ModalRoute.of(context)!.settings.arguments as Map;
-      print('${arguments['state']} is state in image');
       serverInfo = arguments['server'];
       ipAdd = arguments['input'];
-      setState(() {});
     });
-    loadData();
     Timer.periodic(const Duration(milliseconds: 4500), (timer) async {
       loadData();
       // print(serverInfo);

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:blinking_text/blinking_text.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,7 +17,7 @@ class _LoadingState extends State<Loading> {
     await loadDiskValues();
     if (userInputOut != '' && userInputOut != null) {
       await Navigator.pushReplacementNamed(context, '/home',
-          arguments: {'input': userInputOut, 'state': 'home'});
+          arguments: {'input': userInputOut});
     }
   }
 
@@ -83,28 +84,51 @@ class _LoadingState extends State<Loading> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Loading screen'),
+        title: const Text('Loading...\n Enter IP'),
       ),
-      body: Stack(children: [
-        const Center(child: CircularProgressIndicator()),
-        Center(
-          child: IconButton(
-              iconSize: 40,
-              onPressed: () async {
-                final SharedPreferences prefs = await _prefs;
-                userInputOut =
-                    await Navigator.of(context).push(dialogBuilder(context));
-                String _userInputOut = (prefs.getString('userInputOut') ?? '');
-                setState(() {
-                  _userInputOut = userInputOut!;
-                });
-                prefs.setString("userInputOut", _userInputOut);
-                await Navigator.pushReplacementNamed(context, '/home',
-                    arguments: {'input': userInputOut, 'state': 'home'});
-              },
-              icon: const Icon(Icons.cast_connected_outlined)),
-        )
-      ]),
+      body: Stack(
+        children: [
+          Center(
+              child: Container(
+            padding: EdgeInsets.only(bottom: 95),
+            child: BlinkText(
+              'Enter IP address',
+              endColor: Colors.red,
+              duration: Duration(seconds: 1),
+              style: TextStyle(
+                  color: Colors.blue,
+                  fontSize: 21,
+                  fontWeight: FontWeight.bold),
+            ),
+          )),
+          Center(
+              child: Container(
+            height: 200,
+            width: 200,
+            child: CircularProgressIndicator(
+              backgroundColor: Colors.red,
+            ),
+          )),
+          Center(
+            child: IconButton(
+                iconSize: 40,
+                onPressed: () async {
+                  final SharedPreferences prefs = await _prefs;
+                  userInputOut =
+                      await Navigator.of(context).push(dialogBuilder(context));
+                  String _userInputOut =
+                      (prefs.getString('userInputOut') ?? '');
+                  setState(() {
+                    _userInputOut = userInputOut!;
+                  });
+                  prefs.setString("userInputOut", _userInputOut);
+                  await Navigator.pushReplacementNamed(context, '/home',
+                      arguments: {'input': userInputOut, 'state': 'home'});
+                },
+                icon: const Icon(Icons.cast_connected_outlined)),
+          ),
+        ],
+      ),
     );
   }
 }
