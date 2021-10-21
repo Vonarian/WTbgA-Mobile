@@ -1,7 +1,6 @@
 import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:wtbgamobile/screens/image_state.dart';
 import 'package:wtbgamobile/screens/loading.dart';
 
 import 'screens/home.dart';
@@ -38,7 +37,7 @@ Future<void> main() async {
         // splash: (context) => const Splash(),
         loading: (context) => const Loading(),
         home: (context) => const Home(),
-        '/image': (context) => const ImageState(),
+        // '/image': (context) => const ImageState(),
       },
     ),
   ));

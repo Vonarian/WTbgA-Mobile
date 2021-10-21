@@ -9,8 +9,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:wtbgamobile/chat_data/received_chat.dart';
-import 'package:wtbgamobile/data_receiver/serverdata.dart';
 
 import '../main.dart';
 
@@ -25,45 +25,48 @@ class _HomeState extends ConsumerState<Home> {
   saveFileFromBase64String(String path, String base64String) =>
       File(path).writeAsBytes(base64Decode(base64String));
 
-  Future<void> updateData() async {
-    var state = ref.read(stateProvider);
-    if (state.state != 'home') return;
-    var waterTemp = ref.read(waterTempProvider);
-    var oilTemp = ref.read(oilTempProvider);
-    var throttle = ref.read(throttleProvider);
-    var vehicleName = ref.read(vehicleNameProvider);
-    if (userInputInHome == null || userInputInHome == '') return;
-    ServerData internalServerData =
-        await ServerData.getData(userInputInHome ?? '', state.state);
-    oilTemp.state = internalServerData.oil;
-    waterTemp.state = internalServerData.water;
-    throttle.state = internalServerData.throttle;
-    vehicleName.state = internalServerData.vehicleName;
-    serverData = internalServerData;
-    serverMsg = internalServerData.damageMsg;
-    ias = internalServerData.ias;
-    tas = internalServerData.tas;
-    critAoa = internalServerData.critAoa;
-    gear = internalServerData.gear;
-    minFuel = internalServerData.minFuel;
-    maxFuel = internalServerData.maxFuel;
-    altitude = internalServerData.altitude;
-    aoa = internalServerData.aoa;
-    engineTemp = internalServerData.engineTemp;
-    climb = internalServerData.climb;
-    chatId1 = internalServerData.chatId1;
-    chatId2 = internalServerData.chatId2;
-    chatMessage1 = internalServerData.chatMsg1;
-    chatMessage2 = internalServerData.chatMsg2;
-    chatMode1 = internalServerData.chatMode1;
-    chatMode2 = internalServerData.chatMode2;
-    chatSender1 = internalServerData.chatSender1;
-    chatSender2 = internalServerData.chatSender2;
-    chatSender2 = internalServerData.chatSender2;
-    chatEnemy1 = internalServerData.chatEnemy1;
-    chatEnemy2 = internalServerData.chatEnemy2;
-    idData.value = internalServerData.damageId;
-  }
+  // Future<void> updateData() async {
+  //   await loadInput();
+  //   var state = ref.read(stateProvider);
+  //   // if (state.state != 'home') return;
+  //   var waterTemp = ref.read(waterTempProvider);
+  //   var oilTemp = ref.read(oilTempProvider);
+  //   var throttle = ref.read(throttleProvider);
+  //   var vehicleName = ref.read(vehicleNameProvider);
+  //   // if (userInputInHome == null || userInputInHome == '') return;
+  //   Map<String, dynamic> internalServerData =
+  //       getData(userInputInHome, state.state);
+  //   Timer.periodic(Duration(seconds: 1), (timer) {
+  //     print('$internalServerData is the value');
+  //
+  //     oilTemp.state = internalServerData['oil'];
+  //     waterTemp.state = internalServerData['water'];
+  //     throttle.state = double.tryParse(internalServerData['throttle']);
+  //     vehicleName.state = internalServerData['vehicleName'];
+  //     serverMsg = internalServerData['damageMsg'];
+  //     ias = internalServerData['ias'];
+  //     tas = internalServerData['tas'];
+  //     critAoa = internalServerData['critAoa'];
+  //     gear = internalServerData['gear'];
+  //     minFuel = internalServerData['minFuel'];
+  //     maxFuel = internalServerData['maxFuel'];
+  //     altitude = internalServerData['altitude'];
+  //     aoa = internalServerData['aoa'];
+  //     engineTemp = internalServerData['engineTemp'];
+  //     climb = internalServerData['climb'];
+  //     chatId1 = internalServerData['chatId1'];
+  //     chatId2 = internalServerData['chatId2'];
+  //     chatMessage1 = internalServerData['chat1'];
+  //     chatMessage2 = internalServerData['chat2'];
+  //     chatMode1 = internalServerData['chatMode1'];
+  //     chatMode2 = internalServerData['chatMode2'];
+  //     chatSender1 = internalServerData['chatSender1'];
+  //     chatSender2 = internalServerData['chatSender2'];
+  //     chatEnemy1 = internalServerData['chatEnemy1'];
+  //     chatEnemy2 = internalServerData['chatEnemy2'];
+  //     idData.value = internalServerData['damageId'];
+  //   });
+  // }
 
   Future<void> notifications() async {
     if (isDamageIdNew && serverMsg == 'Engine overheated') {
@@ -125,19 +128,25 @@ class _HomeState extends ConsumerState<Home> {
     await _prefs.then((SharedPreferences prefs) async {
       lastId = (prefs.getInt('lastId') ?? 0);
     });
-    if (userInputInHome != '' && userInputInHome != null) return;
-    WidgetsBinding.instance!.addPostFrameCallback((_) async {
-      final arguments = ModalRoute.of(context)!.settings.arguments as Map;
-      userInputInHome = arguments['input'];
-    });
+    final arguments = ModalRoute.of(context)!.settings.arguments as Map;
+    userInputInHome = arguments['input'];
   }
 
   @override
   void initState() {
+    giveIps();
     var state = ref.read(stateProvider);
+    Future.delayed(Duration(milliseconds: 500), () async {
+      await giveIps();
+      homeStream =
+          WebSocketChannel.connect(Uri.parse('ws://$userInputInHome:55200'));
+      // homeStream!.listen((event) {
+      //   print(event);
+      // });
+    });
+
     state.state = 'home';
     loadInput();
-    updateData();
     chatSettingsManager();
     idData.addListener(() async {
       if (lastId != idData.value) {
@@ -151,18 +160,19 @@ class _HomeState extends ConsumerState<Home> {
     });
     isDamageIdNew = false;
     Timer.periodic(const Duration(seconds: 1), (timer) {
-      updateData();
       stallDetector();
       chatSettingsManager();
       giveIps();
       setState(() {});
     });
+
     super.initState();
   }
 
   @override
   void dispose() {
     idData.removeListener(() => notifications());
+    homeStream!.sink.close();
     super.dispose();
   }
 
@@ -539,11 +549,10 @@ class _HomeState extends ConsumerState<Home> {
     );
   }
 
-  Future giveIps() async {
+  Future<void> giveIps() async {
     for (var interface in await NetworkInterface.list()) {
       for (var addr in interface.addresses) {
         phoneIP = addr.address;
-        if (!mounted) return;
       }
     }
   }
@@ -596,18 +605,18 @@ class _HomeState extends ConsumerState<Home> {
     var vehicleName = ref.watch(vehicleNameProvider);
     return AppBar(
       actions: [
-        IconButton(
-          onPressed: () async {
-            var state = ref.read(stateProvider);
-            state.state = 'image';
-            Navigator.pushNamed(context, '/image', arguments: {
-              'state': state.state,
-              'input': userInputInHome,
-              'server': server
-            });
-          },
-          icon: const Icon(Icons.image),
-        ),
+        // IconButton(
+        //   onPressed: () async {
+        //     var state = ref.read(stateProvider);
+        //     state.state = 'image';
+        //     Navigator.pushNamed(context, '/image', arguments: {
+        //       'state': state.state,
+        //       'input': userInputInHome,
+        //       'server': server
+        //     });
+        //   },
+        //   icon: const Icon(Icons.image),
+        // ),
       ],
       backgroundColor: Colors.black45,
       centerTitle: true,
@@ -676,7 +685,7 @@ class _HomeState extends ConsumerState<Home> {
   bool critAoaBool = false;
   bool imageNotNull = false;
   dynamic serverData;
-
+  WebSocketChannel? homeStream;
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -688,16 +697,94 @@ class _HomeState extends ConsumerState<Home> {
           backgroundColor: Colors.transparent,
           appBar: appBar(context),
           body: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                throttleText(),
-                iasText(),
-                tasText(),
-                fuelIndicator(),
-                waterText(),
-                climbText(),
-              ],
+            child: StreamBuilder(
+              stream: homeStream!.stream,
+              builder: (BuildContext context, snapshot) {
+                // print(snapshot.data);
+                var state = ref.read(stateProvider);
+
+                Map<String, dynamic> phoneData = {
+                  'state': state.state,
+                  "WTbgA": true
+                };
+                homeStream!.sink.add(jsonEncode(phoneData));
+                if (snapshot.hasData) {
+                  var waterTemp = ref.watch(waterTempProvider);
+                  var oilTemp = ref.watch(oilTempProvider);
+                  var throttle = ref.watch(throttleProvider);
+                  var vehicleName = ref.watch(vehicleNameProvider);
+
+                  Map<String, dynamic> internalServerData =
+                      jsonDecode(snapshot.data as String);
+                  WidgetsBinding.instance!.addPostFrameCallback((_) {
+                    oilTemp.state = internalServerData['oil'];
+                    waterTemp.state = internalServerData['water'];
+                    throttle.state =
+                        double.tryParse(internalServerData['throttle']);
+                    vehicleName.state = internalServerData['vehicleName'];
+                    serverMsg = internalServerData['damageMsg'];
+                  });
+                  ias = internalServerData['ias'];
+                  tas = internalServerData['tas'];
+                  critAoa = internalServerData['critAoa'];
+                  gear = internalServerData['gear'];
+                  minFuel = internalServerData['minFuel'];
+                  maxFuel = internalServerData['maxFuel'];
+                  altitude = internalServerData['altitude'];
+                  aoa = internalServerData['aoa'];
+                  engineTemp = internalServerData['engineTemp'];
+                  climb = internalServerData['climb'];
+                  chatId1 = internalServerData['chatId1'];
+                  chatId2 = internalServerData['chatId2'];
+                  chatMessage1 = internalServerData['chat1'];
+                  chatMessage2 = internalServerData['chat2'];
+                  chatMode1 = internalServerData['chatMode1'];
+                  chatMode2 = internalServerData['chatMode2'];
+                  chatSender1 = internalServerData['chatSender1'];
+                  chatSender2 = internalServerData['chatSender2'];
+                  chatEnemy1 = internalServerData['chatEnemy1'];
+                  chatEnemy2 = internalServerData['chatEnemy2'];
+                  idData.value = internalServerData['damageId'];
+                  return Column(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      throttleText(),
+                      iasText(),
+                      tasText(),
+                      fuelIndicator(),
+                      waterText(),
+                      climbText(),
+                    ],
+                  );
+                }
+                if (snapshot.hasError) {
+                  return Container(
+                    child: BlinkText(
+                      'Please restart application and make sure you have correct IP address',
+                      style: TextStyle(color: Colors.red),
+                      endColor: Colors.purple,
+                    ),
+                  );
+                } else
+                  return Stack(children: [
+                    Center(
+                      child: BlinkText(
+                        "Contact app's Dev",
+                        style: TextStyle(color: Colors.red),
+                        endColor: Colors.purple,
+                      ),
+                    ),
+                    Center(
+                      child: Container(
+                        height: 200,
+                        width: 200,
+                        child: CircularProgressIndicator(
+                          backgroundColor: Colors.red,
+                        ),
+                      ),
+                    ),
+                  ]);
+              },
             ),
           ),
         )
@@ -705,3 +792,35 @@ class _HomeState extends ConsumerState<Home> {
     );
   }
 }
+// var waterTemp = ref.read(waterTempProvider);
+// var oilTemp = ref.read(oilTempProvider);
+// var throttle = ref.read(throttleProvider);
+// var vehicleName = ref.read(vehicleNameProvider);
+// Map internalServerData = snapshot as Map;
+//
+// oilTemp.state = internalServerData['oil'];
+// waterTemp.state = internalServerData['water'];
+// throttle.state = double.tryParse(internalServerData['throttle']);
+// vehicleName.state = internalServerData['vehicleName'];
+// serverMsg = internalServerData['damageMsg'];
+// ias = internalServerData['ias'];
+// tas = internalServerData['tas'];
+// critAoa = internalServerData['critAoa'];
+// gear = internalServerData['gear'];
+// minFuel = internalServerData['minFuel'];
+// maxFuel = internalServerData['maxFuel'];
+// altitude = internalServerData['altitude'];
+// aoa = internalServerData['aoa'];
+// engineTemp = internalServerData['engineTemp'];
+// climb = internalServerData['climb'];
+// chatId1 = internalServerData['chatId1'];
+// chatId2 = internalServerData['chatId2'];
+// chatMessage1 = internalServerData['chat1'];
+// chatMessage2 = internalServerData['chat2'];
+// chatMode1 = internalServerData['chatMode1'];
+// chatMode2 = internalServerData['chatMode2'];
+// chatSender1 = internalServerData['chatSender1'];
+// chatSender2 = internalServerData['chatSender2'];
+// chatEnemy1 = internalServerData['chatEnemy1'];
+// chatEnemy2 = internalServerData['chatEnemy2'];
+// idData.value = internalServerData['damageId'];

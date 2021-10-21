@@ -35,6 +35,8 @@ dependencies:
   ipaddr: ^2.0.0
   shared_preferences:
   photo_view: ^0.13.0
+  web_socket_channel: ^2.1.0
+
   flutter_riverpod: ^1.0.0-dev.10
 # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -70,7 +72,7 @@ flutter:
   assets:
     - assets/app_icon.ico
 #    - assets/splash.gif
-    - assets/logoWTbgA.jpg
+#    - assets/logoWTbgA.jpg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware.
