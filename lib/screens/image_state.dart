@@ -92,7 +92,6 @@ class _ImageStateState extends ConsumerState<ImageState> {
       ipAdd = arguments['input'];
       state.state = arguments['state'];
       player.setDataSource("rtmp://$ipAdd:1935", autoPlay: true);
-
     });
 
     super.initState();
