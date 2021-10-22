@@ -135,8 +135,9 @@ class _HomeState extends ConsumerState<Home> {
   @override
   void initState() {
     giveIps();
+
     var state = ref.read(stateProvider);
-    Future.delayed(Duration(milliseconds: 500), () async {
+    Future.delayed(Duration(milliseconds: 200), () async {
       await giveIps();
       homeStream =
           WebSocketChannel.connect(Uri.parse('ws://$userInputInHome:55200'));
@@ -605,18 +606,18 @@ class _HomeState extends ConsumerState<Home> {
     var vehicleName = ref.watch(vehicleNameProvider);
     return AppBar(
       actions: [
-        // IconButton(
-        //   onPressed: () async {
-        //     var state = ref.read(stateProvider);
-        //     state.state = 'image';
-        //     Navigator.pushNamed(context, '/image', arguments: {
-        //       'state': state.state,
-        //       'input': userInputInHome,
-        //       'server': server
-        //     });
-        //   },
-        //   icon: const Icon(Icons.image),
-        // ),
+        IconButton(
+          onPressed: () async {
+            var state = ref.read(stateProvider);
+            state.state = 'image';
+            Navigator.pushNamed(context, '/image', arguments: {
+              'state': state.state,
+              'input': userInputInHome,
+              // 'server': server
+            });
+          },
+          icon: const Icon(Icons.image),
+        ),
       ],
       backgroundColor: Colors.black45,
       centerTitle: true,
@@ -686,6 +687,8 @@ class _HomeState extends ConsumerState<Home> {
   bool imageNotNull = false;
   dynamic serverData;
   WebSocketChannel? homeStream;
+  int i = 0;
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -702,7 +705,6 @@ class _HomeState extends ConsumerState<Home> {
               builder: (BuildContext context, snapshot) {
                 // print(snapshot.data);
                 var state = ref.read(stateProvider);
-
                 Map<String, dynamic> phoneData = {
                   'state': state.state,
                   "WTbgA": true
@@ -719,8 +721,7 @@ class _HomeState extends ConsumerState<Home> {
                   WidgetsBinding.instance!.addPostFrameCallback((_) {
                     oilTemp.state = internalServerData['oil'];
                     waterTemp.state = internalServerData['water'];
-                    throttle.state =
-                        double.tryParse(internalServerData['throttle']);
+                    throttle.state = internalServerData['throttle'];
                     vehicleName.state = internalServerData['vehicleName'];
                     serverMsg = internalServerData['damageMsg'];
                   });
@@ -758,13 +759,28 @@ class _HomeState extends ConsumerState<Home> {
                   );
                 }
                 if (snapshot.hasError) {
-                  return Container(
-                    child: BlinkText(
-                      'Please restart application and make sure you have correct IP address',
-                      style: TextStyle(color: Colors.red),
-                      endColor: Colors.purple,
+                  return Stack(children: [
+                    Center(
+                      child: Container(
+                        height: 200,
+                        width: 200,
+                        child: CircularProgressIndicator(
+                          backgroundColor: Colors.red,
+                        ),
+                      ),
                     ),
-                  );
+                    Center(
+                      child: Container(
+                        padding: EdgeInsets.fromLTRB(20, 300, 20, 20),
+                        alignment: Alignment.center,
+                        child: BlinkText(
+                          'Please restart application and make sure you have proper connection',
+                          style: TextStyle(color: Colors.red, fontSize: 20),
+                          endColor: Colors.purple,
+                        ),
+                      ),
+                    ),
+                  ]);
                 } else
                   return Stack(children: [
                     Center(
