@@ -129,11 +129,16 @@ class _ImageStateState extends ConsumerState<ImageState> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: InteractiveViewer(
-            child: Center(
-          child: FijkView(player: player),
-        )),
+      body: GestureDetector(
+        onDoubleTap: () {
+          Navigator.of(context).pushReplacementNamed('/i4mage');
+        },
+        child: SafeArea(
+          child: InteractiveViewer(
+              child: Center(
+            child: FijkView(player: player),
+          )),
+        ),
       ),
     );
   }

@@ -8,6 +8,11 @@ import 'screens/home.dart';
 
 StateProvider<String> stateProvider = StateProvider((ref) => 'home');
 String icon = 'assets/app_icon.ico';
+// final sharedPrefProvider = Provider<SharedPreferences>((_)=> throw UnimplementedError());
+// Future<void> main()async{
+//   final prefs = await SharedPreferences.getInstnace();
+//   runApp(ProviderScope(overrides: [prefs.overrideWithValue(prefs)], child: your root widget));
+// }
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 

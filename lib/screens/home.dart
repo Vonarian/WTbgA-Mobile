@@ -33,9 +33,9 @@ class _HomeState extends ConsumerState<Home> {
   //   var oilTemp = ref.read(oilTempProvider);
   //   var throttle = ref.read(throttleProvider);
   //   var vehicleName = ref.read(vehicleNameProvider);
-  //   // if (userInputInHome == null || userInputInHome == '') return;
+  //   // if (ip.state == null || ip.state == '') return;
   //   Map<String, dynamic> internalServerData =
-  //       getData(userInputInHome, state.state);
+  //       getData(ip.state, state.state);
   //   Timer.periodic(Duration(seconds: 1), (timer) {
   //     print('$internalServerData is the value');
   //
@@ -122,32 +122,36 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Future<void> loadInput() async {
-    await _prefs.then((SharedPreferences prefs) async {
-      userInputInHome = (prefs.getString('userInputInHome') ?? '');
+    WidgetsBinding.instance!.addPostFrameCallback((_) async {
+      final arguments = ModalRoute.of(context)!.settings.arguments as Map;
+      await _prefs.then((SharedPreferences prefs) async {
+        userInputInHome =
+            (prefs.getString('userInputInHome') ?? arguments['input']);
+        homeStream = WebSocketChannel.connect(
+            Uri.parse('ws://${userInputInHome}:55200'));
+      });
+      await _prefs.then((SharedPreferences prefs) async {
+        lastId = (prefs.getInt('lastId') ?? 0);
+      });
     });
-    await _prefs.then((SharedPreferences prefs) async {
-      lastId = (prefs.getInt('lastId') ?? 0);
-    });
-    final arguments = ModalRoute.of(context)!.settings.arguments as Map;
-    userInputInHome = arguments['input'];
+    // if (userInputInHome == null || userInputInHome == arguments['input']) {
+    //   print(userInputInHome);
+    //   userInputInHome = arguments['input'];
+    // }
   }
 
   @override
   void initState() {
-    giveIps();
-
     var state = ref.read(stateProvider);
-    Future.delayed(Duration(milliseconds: 200), () async {
-      await giveIps();
-      homeStream =
-          WebSocketChannel.connect(Uri.parse('ws://$userInputInHome:55200'));
-      // homeStream!.listen((event) {
-      //   print(event);
-      // });
-    });
+    loadInput();
+    // Future.delayed(Duration(milliseconds: 200), () async {
+
+    // homeStream!.listen((event) {
+    //   print(event);
+    // });
+    // });
 
     state.state = 'home';
-    loadInput();
     chatSettingsManager();
     idData.addListener(() async {
       if (lastId != idData.value) {
@@ -163,7 +167,7 @@ class _HomeState extends ConsumerState<Home> {
     Timer.periodic(const Duration(seconds: 1), (timer) {
       stallDetector();
       chatSettingsManager();
-      giveIps();
+      if (!mounted) return;
       setState(() {});
     });
 
@@ -311,41 +315,41 @@ class _HomeState extends ConsumerState<Home> {
               ));
   }
 
-  Widget tasText() {
-    return Container(
-        alignment: Alignment.center,
-        width: MediaQuery.of(context).size.width,
-        decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [
-                Color.fromRGBO(10, 123, 10, 0.403921568627451),
-                Color.fromRGBO(0, 50, 158, 0.4196078431372549),
-              ],
-              begin: Alignment.centerLeft,
-              end: Alignment.centerRight,
-            ),
-            borderRadius: const BorderRadius.all(
-              Radius.circular(20.0),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.red.withOpacity(0.07),
-                spreadRadius: 4,
-                blurRadius: 7,
-                offset: const Offset(0, 3),
-              )
-            ]),
-        child: tas != null
-            ? Text(
-                'TAS = $tas km/h',
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-              )
-            : const Text(
-                'No Data for TAS',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
-              ));
-  }
+  // Widget tasText() {
+  //   return Container(
+  //       alignment: Alignment.center,
+  //       width: MediaQuery.of(context).size.width,
+  //       decoration: BoxDecoration(
+  //           gradient: const LinearGradient(
+  //             colors: [
+  //               Color.fromRGBO(10, 123, 10, 0.403921568627451),
+  //               Color.fromRGBO(0, 50, 158, 0.4196078431372549),
+  //             ],
+  //             begin: Alignment.centerLeft,
+  //             end: Alignment.centerRight,
+  //           ),
+  //           borderRadius: const BorderRadius.all(
+  //             Radius.circular(20.0),
+  //           ),
+  //           boxShadow: [
+  //             BoxShadow(
+  //               color: Colors.red.withOpacity(0.07),
+  //               spreadRadius: 4,
+  //               blurRadius: 7,
+  //               offset: const Offset(0, 3),
+  //             )
+  //           ]),
+  //       child: tas != null
+  //           ? Text(
+  //               'TAS = $tas km/h',
+  //               style:
+  //                   const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+  //             )
+  //           : const Text(
+  //               'No Data for TAS',
+  //               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+  //             ));
+  // }
 
   Widget climbText() {
     return Container(
@@ -380,7 +384,7 @@ class _HomeState extends ConsumerState<Home> {
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
-            : critAoaBool && altitude! > 200
+            : critAoaBool && altitude != null && altitude! > 200
                 ? BlinkText('Climb rate = $climb m/s (Stalling!)',
                     duration: const Duration(milliseconds: 200),
                     endColor: Colors.red,
@@ -424,6 +428,82 @@ class _HomeState extends ConsumerState<Home> {
         ),
       ),
     );
+  }
+
+  Widget altText() {
+    return Container(
+        alignment: Alignment.center,
+        width: MediaQuery.of(context).size.width,
+        decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color.fromRGBO(10, 123, 10, 0.403921568627451),
+                Color.fromRGBO(0, 50, 158, 0.4196078431372549),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: const BorderRadius.all(
+              Radius.circular(20.0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.07),
+                spreadRadius: 4,
+                blurRadius: 7,
+                offset: const Offset(0, 3),
+              )
+            ]),
+        child: altitude != null
+            ? Text(
+                'Altitude = $altitude meters',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              )
+            : altitude != null && altitude! <= 100
+                ? BlinkText(
+                    'Altitude = $altitude meters (Too low!!)',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                  )
+                : Text(
+                    'No data for altitude',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                  ));
+  }
+
+  Widget oilText() {
+    var oilTemp = ref.watch(oilTempProvider);
+    return Container(
+        alignment: Alignment.center,
+        width: MediaQuery.of(context).size.width,
+        decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [
+                Color.fromRGBO(10, 123, 10, 0.403921568627451),
+                Color.fromRGBO(0, 50, 158, 0.4196078431372549),
+              ],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+            ),
+            borderRadius: const BorderRadius.all(
+              Radius.circular(20.0),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.red.withOpacity(0.07),
+                spreadRadius: 4,
+                blurRadius: 7,
+                offset: const Offset(0, 3),
+              )
+            ]),
+        child: oilTemp.state != null
+            ? Text(
+                'Oil Temp = ${oilTemp.state} degrees',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              )
+            : Text(
+                'No data for Oil Temp',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+              ));
   }
 
   Widget fuelIndicator() {
@@ -474,7 +554,7 @@ class _HomeState extends ConsumerState<Home> {
                         fontWeight: FontWeight.bold, fontSize: 20),
                     endColor: Colors.red,
                   )
-                : const Text('No Data.',
+                : const Text('No Data for Fuel',
                     textAlign: TextAlign.center,
                     style:
                         TextStyle(fontWeight: FontWeight.bold, fontSize: 20)));
@@ -507,7 +587,7 @@ class _HomeState extends ConsumerState<Home> {
                     ),
                     children: <TextSpan>[
                       TextSpan(
-                          text: '$userInputInHome',
+                          text: '${userInputInHome}',
                           style: const TextStyle(
                               fontWeight: FontWeight.bold, color: Colors.red)),
                     ],
@@ -519,14 +599,16 @@ class _HomeState extends ConsumerState<Home> {
               ),
               onPressed: () async {
                 final SharedPreferences prefs = await _prefs;
-                userInputInHome = await Navigator.of(context)
-                    .push(dialogBuilderForIP(context));
+                userInputInHome = (await Navigator.of(context)
+                    .push(dialogBuilderForIP(context)))!;
                 String _userInputInHome =
                     (prefs.getString('userInputInHome') ?? '');
                 setState(() {
                   _userInputInHome = userInputInHome!;
                 });
                 prefs.setString("userInputInHome", _userInputInHome);
+                homeStream = WebSocketChannel.connect(
+                    Uri.parse('ws://${userInputInHome}:55200'));
               },
               child: const Text('Update server IP'),
             ),
@@ -550,13 +632,13 @@ class _HomeState extends ConsumerState<Home> {
     );
   }
 
-  Future<void> giveIps() async {
-    for (var interface in await NetworkInterface.list()) {
-      for (var addr in interface.addresses) {
-        phoneIP = addr.address;
-      }
-    }
-  }
+  // Future<void> giveIps() async {
+  //   for (var interface in await NetworkInterface.list()) {
+  //     for (var addr in interface.addresses) {
+  //       phoneIP = addr.address;
+  //     }
+  //   }
+  // }
 
   chatSettingsManager() {
     if (!mounted) return;
@@ -604,13 +686,14 @@ class _HomeState extends ConsumerState<Home> {
 
   PreferredSizeWidget appBar(BuildContext context) {
     var vehicleName = ref.watch(vehicleNameProvider);
+
     return AppBar(
       actions: [
         IconButton(
           onPressed: () async {
             var state = ref.read(stateProvider);
             state.state = 'image';
-            Navigator.pushNamed(context, '/image', arguments: {
+            Navigator.pushReplacementNamed(context, '/image', arguments: {
               'state': state.state,
               'input': userInputInHome,
               // 'server': server
@@ -630,12 +713,12 @@ class _HomeState extends ConsumerState<Home> {
     );
   }
 
+  String? userInputInHome;
   String? homeState;
   String phoneIP = '';
   var server;
   bool? isAllowed;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
-  dynamic userInputInHome;
   int? ias;
   int? tas;
   double? climb;
@@ -751,9 +834,10 @@ class _HomeState extends ConsumerState<Home> {
                     children: [
                       throttleText(),
                       iasText(),
-                      tasText(),
                       fuelIndicator(),
                       waterText(),
+                      oilText(),
+                      altText(),
                       climbText(),
                     ],
                   );
