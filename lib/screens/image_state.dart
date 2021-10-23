@@ -131,7 +131,7 @@ class _ImageStateState extends ConsumerState<ImageState> {
     return Scaffold(
       body: GestureDetector(
         onDoubleTap: () {
-          Navigator.of(context).pushReplacementNamed('/i4mage');
+          Navigator.of(context).pushReplacementNamed('/image');
         },
         child: SafeArea(
           child: InteractiveViewer(
