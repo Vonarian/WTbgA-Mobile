@@ -131,7 +131,10 @@ class _ImageStateState extends ConsumerState<ImageState> {
     return Scaffold(
       body: GestureDetector(
         onDoubleTap: () {
-          Navigator.of(context).pushReplacementNamed('/image');
+          var state = ref.read(stateProvider);
+          state.state = 'home';
+          Navigator.pushReplacementNamed(context, '/image',
+              arguments: {'input': ipAdd, 'state': state.state});
         },
         child: SafeArea(
           child: InteractiveViewer(
