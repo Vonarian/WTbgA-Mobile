@@ -89,7 +89,7 @@ class _HomeState extends ConsumerState<Home> {
               body: 'Oil is overheating'));
       isDamageIdNew = false;
     }
-    if (isDamageIdNew && serverMsg == "Engine died: no fuel") {
+    if (isDamageIdNew && serverMsg == 'Engine died: no fuel') {
       AwesomeNotifications().createNotification(
           content: NotificationContent(
               icon: 'resource://drawable/logo',
@@ -99,7 +99,7 @@ class _HomeState extends ConsumerState<Home> {
               body: 'Engine ran out of fuel and died.'));
       isDamageIdNew = false;
     }
-    if (isDamageIdNew && serverMsg == "Engine died: overheating") {
+    if (isDamageIdNew && serverMsg == 'Engine died: overheating') {
       AwesomeNotifications().createNotification(
           content: NotificationContent(
               icon: 'resource://drawable/logo',
@@ -109,7 +109,7 @@ class _HomeState extends ConsumerState<Home> {
               body: 'Engine died due to overheating'));
       isDamageIdNew = false;
     }
-    if (isDamageIdNew && serverMsg == "Engine died: propeller broken") {
+    if (isDamageIdNew && serverMsg == 'Engine died: propeller broken') {
       AwesomeNotifications().createNotification(
           content: NotificationContent(
               icon: 'resource://drawable/logo',
@@ -142,8 +142,15 @@ class _HomeState extends ConsumerState<Home> {
 
   @override
   void initState() {
-    var state = ref.read(stateProvider);
+    super.initState();
     loadInput();
+
+    var state = ref.read(stateProvider);
+    phoneData = {
+      'state': state.state,
+      'WTbgA': true,
+      'startStream': false,
+    };
     // Future.delayed(Duration(milliseconds: 200), () async {
 
     // homeStream!.listen((event) {
@@ -170,8 +177,11 @@ class _HomeState extends ConsumerState<Home> {
       if (!mounted) return;
       setState(() {});
     });
+  }
 
-    super.initState();
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
   }
 
   @override
@@ -375,7 +385,8 @@ class _HomeState extends ConsumerState<Home> {
                 offset: const Offset(0, 3),
               )
             ]),
-        child: aoa != null &&
+        child: climb != 0 &&
+                aoa != null &&
                 critAoa != null &&
                 climb != null &&
                 !(aoa! >= -critAoa!)
@@ -384,7 +395,7 @@ class _HomeState extends ConsumerState<Home> {
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
-            : critAoaBool && altitude != null && altitude! > 200
+            : climb != 0 && critAoaBool && altitude != null && altitude! > 200
                 ? BlinkText('Climb rate = $climb m/s (Stalling!)',
                     duration: const Duration(milliseconds: 200),
                     endColor: Colors.red,
@@ -424,7 +435,7 @@ class _HomeState extends ConsumerState<Home> {
         content: TextField(
           onChanged: (value) {},
           controller: userInput,
-          decoration: const InputDecoration(hintText: "192.168.X.Y"),
+          decoration: const InputDecoration(hintText: '192.168.X.Y'),
         ),
       ),
     );
@@ -454,7 +465,7 @@ class _HomeState extends ConsumerState<Home> {
                 offset: const Offset(0, 3),
               )
             ]),
-        child: altitude != null
+        child: altitude != null && altitude! >= 100
             ? Text(
                 'Altitude = $altitude meters',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
@@ -462,7 +473,11 @@ class _HomeState extends ConsumerState<Home> {
             : altitude != null && altitude! <= 100
                 ? BlinkText(
                     'Altitude = $altitude meters (Too low!!)',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 20,
+                        color: Colors.black),
+                    endColor: Colors.red,
                   )
                 : Text(
                     'No data for altitude',
@@ -606,20 +621,20 @@ class _HomeState extends ConsumerState<Home> {
                 setState(() {
                   _userInputInHome = userInputInHome!;
                 });
-                prefs.setString("userInputInHome", _userInputInHome);
+                prefs.setString('userInputInHome', _userInputInHome);
                 homeStream = WebSocketChannel.connect(
                     Uri.parse('ws://${userInputInHome}:55200'));
               },
               child: const Text('Update server IP'),
             ),
-            chatSender1 != null
+            chatSender1 != 'No Data'
                 ? ReceivedMessageScreen(
                     chatSender: chatSender2,
                     message: '$chatPrefix2 $chatMessage2',
                     style: TextStyle(color: chatColor2),
                   )
                 : Container(),
-            chatSender2 != null
+            chatSender2 != 'No Data'
                 ? ReceivedMessageScreen(
                     chatSender: chatSender1,
                     message: '$chatPrefix1 $chatMessage1',
@@ -655,7 +670,7 @@ class _HomeState extends ConsumerState<Home> {
       chatPrefix1 = null;
     }
     if (chatSender1 == null) {
-      chatSender1 == emptyString;
+      chatSender1 = emptyString;
     }
     if (chatEnemy1 == true) {
       chatColor1 = Colors.red;
@@ -675,7 +690,7 @@ class _HomeState extends ConsumerState<Home> {
       chatPrefix2 = null;
     }
     if (chatSender2 == null) {
-      chatSender2 == emptyString;
+      chatSender2 = emptyString;
     }
     if (chatEnemy2 == true) {
       chatColor2 = Colors.red;
@@ -693,6 +708,12 @@ class _HomeState extends ConsumerState<Home> {
           onPressed: () async {
             var state = ref.read(stateProvider);
             state.state = 'image';
+            phoneData = {
+              'state': state.state,
+              'WTbgA': true,
+              'startStream': true
+            };
+            homeStream!.sink.add(jsonEncode(phoneData));
             Navigator.pushReplacementNamed(context, '/image', arguments: {
               'state': state.state,
               'input': userInputInHome,
@@ -771,7 +792,7 @@ class _HomeState extends ConsumerState<Home> {
   dynamic serverData;
   WebSocketChannel? homeStream;
   int i = 0;
-
+  late Map<String, dynamic>? phoneData = {};
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -787,11 +808,7 @@ class _HomeState extends ConsumerState<Home> {
               stream: homeStream!.stream,
               builder: (BuildContext context, snapshot) {
                 // print(snapshot.data);
-                var state = ref.read(stateProvider);
-                Map<String, dynamic> phoneData = {
-                  'state': state.state,
-                  "WTbgA": true
-                };
+
                 homeStream!.sink.add(jsonEncode(phoneData));
                 if (snapshot.hasData) {
                   var waterTemp = ref.watch(waterTempProvider);
@@ -846,44 +863,31 @@ class _HomeState extends ConsumerState<Home> {
                   return Stack(children: [
                     Center(
                       child: Container(
-                        height: 200,
-                        width: 200,
-                        child: CircularProgressIndicator(
-                          backgroundColor: Colors.red,
-                        ),
-                      ),
-                    ),
-                    Center(
-                      child: Container(
-                        padding: EdgeInsets.fromLTRB(20, 300, 20, 20),
+                        padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
                         alignment: Alignment.center,
                         child: BlinkText(
-                          'Please restart application and make sure you have proper connection',
-                          style: TextStyle(color: Colors.red, fontSize: 20),
+                          '${snapshot.error}',
+                          style: TextStyle(color: Colors.red, fontSize: 15),
+                          textAlign: TextAlign.center,
                           endColor: Colors.purple,
                         ),
                       ),
                     ),
                   ]);
-                } else
-                  return Stack(children: [
-                    Center(
-                      child: BlinkText(
-                        "Contact app's Dev",
-                        style: TextStyle(color: Colors.red),
-                        endColor: Colors.purple,
+                } else {
+                  print(snapshot.connectionState);
+                  // homeStream = WebSocketChannel.connect(
+                  //     Uri.parse('ws://${userInputInHome}:55200'));
+                  return Center(
+                    child: Container(
+                      height: 200,
+                      width: 200,
+                      child: CircularProgressIndicator(
+                        backgroundColor: Colors.red,
                       ),
                     ),
-                    Center(
-                      child: Container(
-                        height: 200,
-                        width: 200,
-                        child: CircularProgressIndicator(
-                          backgroundColor: Colors.red,
-                        ),
-                      ),
-                    ),
-                  ]);
+                  );
+                }
               },
             ),
           ),
@@ -892,35 +896,3 @@ class _HomeState extends ConsumerState<Home> {
     );
   }
 }
-// var waterTemp = ref.read(waterTempProvider);
-// var oilTemp = ref.read(oilTempProvider);
-// var throttle = ref.read(throttleProvider);
-// var vehicleName = ref.read(vehicleNameProvider);
-// Map internalServerData = snapshot as Map;
-//
-// oilTemp.state = internalServerData['oil'];
-// waterTemp.state = internalServerData['water'];
-// throttle.state = double.tryParse(internalServerData['throttle']);
-// vehicleName.state = internalServerData['vehicleName'];
-// serverMsg = internalServerData['damageMsg'];
-// ias = internalServerData['ias'];
-// tas = internalServerData['tas'];
-// critAoa = internalServerData['critAoa'];
-// gear = internalServerData['gear'];
-// minFuel = internalServerData['minFuel'];
-// maxFuel = internalServerData['maxFuel'];
-// altitude = internalServerData['altitude'];
-// aoa = internalServerData['aoa'];
-// engineTemp = internalServerData['engineTemp'];
-// climb = internalServerData['climb'];
-// chatId1 = internalServerData['chatId1'];
-// chatId2 = internalServerData['chatId2'];
-// chatMessage1 = internalServerData['chat1'];
-// chatMessage2 = internalServerData['chat2'];
-// chatMode1 = internalServerData['chatMode1'];
-// chatMode2 = internalServerData['chatMode2'];
-// chatSender1 = internalServerData['chatSender1'];
-// chatSender2 = internalServerData['chatSender2'];
-// chatEnemy1 = internalServerData['chatEnemy1'];
-// chatEnemy2 = internalServerData['chatEnemy2'];
-// idData.value = internalServerData['damageId'];

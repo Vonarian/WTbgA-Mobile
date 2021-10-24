@@ -59,7 +59,7 @@ class _LoadingState extends ConsumerState<Loading> {
         content: TextField(
           onChanged: (value) {},
           controller: userInputController,
-          decoration: const InputDecoration(hintText: "192.168.X.Y"),
+          decoration: const InputDecoration(hintText: '192.168.X.Y'),
         ),
       ),
     );
@@ -119,7 +119,7 @@ class _LoadingState extends ConsumerState<Loading> {
                   setState(() {
                     _userInputOut = userInputOut!;
                   });
-                  prefs.setString("userInputOut", _userInputOut);
+                  prefs.setString('userInputOut', _userInputOut);
                   await Navigator.pushReplacementNamed(context, '/home',
                       arguments: {'input': userInputOut, 'state': 'home'});
                 },

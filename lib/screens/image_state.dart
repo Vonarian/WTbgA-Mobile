@@ -91,7 +91,7 @@ class _ImageStateState extends ConsumerState<ImageState> {
       final arguments = ModalRoute.of(context)!.settings.arguments as Map;
       ipAdd = arguments['input'];
       state.state = arguments['state'];
-      player.setDataSource("rtmp://$ipAdd:1935", autoPlay: true);
+      player.setDataSource('rtmp://$ipAdd:1935', autoPlay: true);
     });
 
     super.initState();
@@ -133,7 +133,7 @@ class _ImageStateState extends ConsumerState<ImageState> {
         onDoubleTap: () {
           var state = ref.read(stateProvider);
           state.state = 'home';
-          Navigator.pushReplacementNamed(context, '/image',
+          Navigator.pushReplacementNamed(context, '/home',
               arguments: {'input': ipAdd, 'state': state.state});
         },
         child: SafeArea(
