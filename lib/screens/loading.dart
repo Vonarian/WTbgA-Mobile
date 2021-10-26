@@ -1,3 +1,4 @@
+import 'package:awesome_notifications/awesome_notifications.dart';
 import 'package:blinking_text/blinking_text.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -13,6 +14,17 @@ class Loading extends ConsumerStatefulWidget {
 class _LoadingState extends ConsumerState<Loading> {
   Future<void> loadData() async {
     await loadDiskValues();
+    await AwesomeNotifications()
+        .isNotificationAllowed()
+        .then((isAllowed) async {
+      print(isAllowed);
+
+      if (!isAllowed) {
+        await showDialog(
+            context: context, builder: (BuildContext context) => errorDialog);
+        AwesomeNotifications().requestPermissionToSendNotifications();
+      }
+    });
     if (userInputOut != '' && userInputOut != null) {
       await Navigator.pushReplacementNamed(context, '/home',
           arguments: {'input': userInputOut});
@@ -26,6 +38,28 @@ class _LoadingState extends ConsumerState<Loading> {
     super.initState();
     loadData();
   }
+
+  late Dialog errorDialog = Dialog(
+    shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.0)), //this right here
+    child: Container(
+      height: 30.0,
+      width: 30.0,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
+          Padding(
+              padding: EdgeInsets.all(7.0),
+              child: TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: Text('Allow'),
+              )),
+        ],
+      ),
+    ),
+  );
 
   loadDiskValues() async {
     await _prefs.then((SharedPreferences prefs) async {
@@ -82,7 +116,7 @@ class _LoadingState extends ConsumerState<Loading> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
-        title: const Text('Loading\n Enter IP'),
+        title: const Text('Loading (Enter IP)'),
       ),
       body: Stack(
         children: [
@@ -111,6 +145,18 @@ class _LoadingState extends ConsumerState<Loading> {
             child: IconButton(
                 iconSize: 40,
                 onPressed: () async {
+                  AwesomeNotifications()
+                      .isNotificationAllowed()
+                      .then((isAllowed) async {
+                    if (!isAllowed) {
+                      await showDialog(
+                          context: context,
+                          builder: (BuildContext context) => errorDialog);
+                      AwesomeNotifications()
+                          .requestPermissionToSendNotifications();
+                    }
+                  });
+
                   final SharedPreferences prefs = await _prefs;
                   userInputOut =
                       await Navigator.of(context).push(dialogBuilder(context));

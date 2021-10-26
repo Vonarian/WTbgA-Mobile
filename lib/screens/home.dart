@@ -122,18 +122,18 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Future<void> loadInput() async {
-    WidgetsBinding.instance!.addPostFrameCallback((_) async {
-      final arguments = ModalRoute.of(context)!.settings.arguments as Map;
-      await _prefs.then((SharedPreferences prefs) async {
-        userInputInHome =
-            (prefs.getString('userInputInHome') ?? arguments['input']);
-        homeStream = WebSocketChannel.connect(
-            Uri.parse('ws://${userInputInHome}:55200'));
-      });
-      await _prefs.then((SharedPreferences prefs) async {
-        lastId = (prefs.getInt('lastId') ?? 0);
-      });
+    // WidgetsBinding.instance!.addPostFrameCallback((_) async {
+    final arguments = ModalRoute.of(context)!.settings.arguments as Map;
+    await _prefs.then((SharedPreferences prefs) async {
+      userInputInHome =
+          (prefs.getString('userInputInHome') ?? arguments['input']);
+      homeStream = await WebSocketChannel.connect(
+          Uri.parse('ws://${userInputInHome}:55200'));
     });
+    await _prefs.then((SharedPreferences prefs) async {
+      lastId = (prefs.getInt('lastId') ?? 0);
+    });
+    // });
     // if (userInputInHome == null || userInputInHome == arguments['input']) {
     //   print(userInputInHome);
     //   userInputInHome = arguments['input'];
@@ -143,7 +143,9 @@ class _HomeState extends ConsumerState<Home> {
   @override
   void initState() {
     super.initState();
-    loadInput();
+    Future.delayed(Duration.zero, () {
+      loadInput();
+    });
 
     var state = ref.read(stateProvider);
     phoneData = {
@@ -151,12 +153,6 @@ class _HomeState extends ConsumerState<Home> {
       'WTbgA': true,
       'startStream': false,
     };
-    // Future.delayed(Duration(milliseconds: 200), () async {
-
-    // homeStream!.listen((event) {
-    //   print(event);
-    // });
-    // });
 
     state.state = 'home';
     chatSettingsManager();
@@ -186,9 +182,10 @@ class _HomeState extends ConsumerState<Home> {
 
   @override
   void dispose() {
+    super.dispose();
+
     idData.removeListener(() => notifications());
     homeStream!.sink.close();
-    super.dispose();
   }
 
   // Future<void> setImage() async {
@@ -796,89 +793,95 @@ class _HomeState extends ConsumerState<Home> {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: Stack(children: [
-        Scaffold(
-          drawer: Builder(builder: (context) {
-            return drawerBuilder();
-          }),
-          backgroundColor: Colors.transparent,
-          appBar: appBar(context),
-          body: Center(
-            child: StreamBuilder(
-              stream: homeStream!.stream,
-              builder: (BuildContext context, snapshot) {
-                // print(snapshot.data);
+      child: Scaffold(
+        drawer: Builder(builder: (context) {
+          return drawerBuilder();
+        }),
+        backgroundColor: Colors.black,
+        appBar: appBar(context),
+        body: Center(
+          child: StreamBuilder(
+            stream: homeStream!.stream,
+            builder: (BuildContext context, snapshot) {
+              homeStream!.sink.add(jsonEncode(phoneData));
+              if (snapshot.hasData) {
+                var waterTemp = ref.watch(waterTempProvider);
+                var oilTemp = ref.watch(oilTempProvider);
+                var throttle = ref.watch(throttleProvider);
+                var vehicleName = ref.watch(vehicleNameProvider);
 
-                homeStream!.sink.add(jsonEncode(phoneData));
-                if (snapshot.hasData) {
-                  var waterTemp = ref.watch(waterTempProvider);
-                  var oilTemp = ref.watch(oilTempProvider);
-                  var throttle = ref.watch(throttleProvider);
-                  var vehicleName = ref.watch(vehicleNameProvider);
-
-                  Map<String, dynamic> internalServerData =
-                      jsonDecode(snapshot.data as String);
-                  WidgetsBinding.instance!.addPostFrameCallback((_) {
-                    oilTemp.state = internalServerData['oil'];
-                    waterTemp.state = internalServerData['water'];
-                    throttle.state = internalServerData['throttle'];
-                    vehicleName.state = internalServerData['vehicleName'];
-                    serverMsg = internalServerData['damageMsg'];
-                  });
-                  ias = internalServerData['ias'];
-                  tas = internalServerData['tas'];
-                  critAoa = internalServerData['critAoa'];
-                  gear = internalServerData['gear'];
-                  minFuel = internalServerData['minFuel'];
-                  maxFuel = internalServerData['maxFuel'];
-                  altitude = internalServerData['altitude'];
-                  aoa = internalServerData['aoa'];
-                  engineTemp = internalServerData['engineTemp'];
-                  climb = internalServerData['climb'];
-                  chatId1 = internalServerData['chatId1'];
-                  chatId2 = internalServerData['chatId2'];
-                  chatMessage1 = internalServerData['chat1'];
-                  chatMessage2 = internalServerData['chat2'];
-                  chatMode1 = internalServerData['chatMode1'];
-                  chatMode2 = internalServerData['chatMode2'];
-                  chatSender1 = internalServerData['chatSender1'];
-                  chatSender2 = internalServerData['chatSender2'];
-                  chatEnemy1 = internalServerData['chatEnemy1'];
-                  chatEnemy2 = internalServerData['chatEnemy2'];
-                  idData.value = internalServerData['damageId'];
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      throttleText(),
-                      iasText(),
-                      fuelIndicator(),
-                      waterText(),
-                      oilText(),
-                      altText(),
-                      climbText(),
-                    ],
-                  );
-                }
-                if (snapshot.hasError) {
-                  return Stack(children: [
-                    Center(
-                      child: Container(
-                        padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
-                        alignment: Alignment.center,
-                        child: BlinkText(
-                          '${snapshot.error}',
-                          style: TextStyle(color: Colors.red, fontSize: 15),
-                          textAlign: TextAlign.center,
-                          endColor: Colors.purple,
-                        ),
+                Map<String, dynamic> internalServerData =
+                    jsonDecode(snapshot.data as String);
+                WidgetsBinding.instance!.addPostFrameCallback((_) {
+                  oilTemp.state = internalServerData['oil'];
+                  waterTemp.state = internalServerData['water'];
+                  throttle.state = internalServerData['throttle'];
+                  vehicleName.state = internalServerData['vehicleName'];
+                  serverMsg = internalServerData['damageMsg'];
+                });
+                ias = internalServerData['ias'];
+                tas = internalServerData['tas'];
+                critAoa = internalServerData['critAoa'];
+                gear = internalServerData['gear'];
+                minFuel = internalServerData['minFuel'];
+                maxFuel = internalServerData['maxFuel'];
+                altitude = internalServerData['altitude'];
+                aoa = internalServerData['aoa'];
+                engineTemp = internalServerData['engineTemp'];
+                climb = internalServerData['climb'];
+                chatId1 = internalServerData['chatId1'];
+                chatId2 = internalServerData['chatId2'];
+                chatMessage1 = internalServerData['chat1'];
+                chatMessage2 = internalServerData['chat2'];
+                chatMode1 = internalServerData['chatMode1'];
+                chatMode2 = internalServerData['chatMode2'];
+                chatSender1 = internalServerData['chatSender1'];
+                chatSender2 = internalServerData['chatSender2'];
+                chatEnemy1 = internalServerData['chatEnemy1'];
+                chatEnemy2 = internalServerData['chatEnemy2'];
+                idData.value = internalServerData['damageId'];
+                return Column(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    throttleText(),
+                    iasText(),
+                    fuelIndicator(),
+                    waterText(),
+                    oilText(),
+                    altText(),
+                    climbText(),
+                  ],
+                );
+              }
+              if (snapshot.hasError) {
+                return Stack(children: [
+                  Center(
+                    child: Container(
+                      padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
+                      alignment: Alignment.center,
+                      child: BlinkText(
+                        '${snapshot.error}',
+                        style: TextStyle(color: Colors.red, fontSize: 15),
+                        textAlign: TextAlign.center,
+                        endColor: Colors.purple,
                       ),
                     ),
-                  ]);
-                } else {
-                  print(snapshot.connectionState);
-                  // homeStream = WebSocketChannel.connect(
-                  //     Uri.parse('ws://${userInputInHome}:55200'));
-                  return Center(
+                  ),
+                ]);
+              } else {
+                print(snapshot.connectionState);
+                // homeStream = WebSocketChannel.connect(
+                //     Uri.parse('ws://${userInputInHome}:55200'));
+                return Stack(children: [
+                  Center(
+                    child: BlinkText(
+                      '${snapshot.connectionState}',
+                      style: TextStyle(color: Colors.red, fontSize: 15),
+                      textAlign: TextAlign.center,
+                      endColor: Colors.purple,
+                    ),
+                  ),
+                  Center(
                     child: Container(
                       height: 200,
                       width: 200,
@@ -886,13 +889,13 @@ class _HomeState extends ConsumerState<Home> {
                         backgroundColor: Colors.red,
                       ),
                     ),
-                  );
-                }
-              },
-            ),
+                  ),
+                ]);
+              }
+            },
           ),
-        )
-      ]),
+        ),
+      ),
     );
   }
 }

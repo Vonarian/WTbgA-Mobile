@@ -18,6 +18,7 @@ Future<void> main() async {
 
   const loading = '/loading';
   const home = '/home';
+  const image = '/image';
   AwesomeNotifications().initialize(
       // set the icon to null if you want to use the default app icon
       'resource://drawable/logo',
@@ -27,7 +28,7 @@ Future<void> main() async {
             channelName: 'Basic notifications',
             channelDescription: 'Notification channel for basic tests',
             defaultColor: Colors.transparent,
-            ledColor: Colors.white)
+            ledColor: Colors.greenAccent)
       ]);
   runApp(ProviderScope(
     child: MaterialApp(
@@ -44,7 +45,7 @@ Future<void> main() async {
         // splash: (context) => const Splash(),
         loading: (context) => const Loading(),
         home: (context) => const Home(),
-        '/image': (context) => const ImageState(),
+        image: (context) => const ImageState(),
       },
     ),
   ));

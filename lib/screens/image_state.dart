@@ -125,7 +125,6 @@ class _ImageStateState extends ConsumerState<ImageState> {
   // var phoneIP;
   // dynamic imageOut;
   // dynamic imageData;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
