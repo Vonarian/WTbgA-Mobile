@@ -9,6 +9,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:wakelock/wakelock.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:wtbgamobile/chat_data/received_chat.dart';
 
@@ -121,14 +122,22 @@ class _HomeState extends ConsumerState<Home> {
     }
   }
 
+  Future<void> manageWakeLock() async {
+    await Wakelock.disable();
+    wakeLockStat = await Wakelock.enabled;
+    print(wakeLockStat);
+  }
+
   Future<void> loadInput() async {
+    var userInputInHome = ref.read(userInputInHomeProvider);
+
     // WidgetsBinding.instance!.addPostFrameCallback((_) async {
     final arguments = ModalRoute.of(context)!.settings.arguments as Map;
     await _prefs.then((SharedPreferences prefs) async {
-      userInputInHome =
+      userInputInHome.state =
           (prefs.getString('userInputInHome') ?? arguments['input']);
       homeStream = await WebSocketChannel.connect(
-          Uri.parse('ws://${userInputInHome}:55200'));
+          Uri.parse('ws://${userInputInHome.state}:55200'));
     });
     await _prefs.then((SharedPreferences prefs) async {
       lastId = (prefs.getInt('lastId') ?? 0);
@@ -145,6 +154,7 @@ class _HomeState extends ConsumerState<Home> {
     super.initState();
     Future.delayed(Duration.zero, () {
       loadInput();
+      manageWakeLock();
     });
 
     var state = ref.read(stateProvider);
@@ -407,7 +417,7 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   static Route<String> dialogBuilderForIP(BuildContext context) {
-    TextEditingController userInput = TextEditingController();
+    late TextEditingController userInput = TextEditingController();
     return DialogRoute(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -573,6 +583,7 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Widget drawerBuilder() {
+    var userInputInHome = ref.read(userInputInHomeProvider);
     return Drawer(
       child: Container(
         color: Colors.black45,
@@ -599,7 +610,7 @@ class _HomeState extends ConsumerState<Home> {
                     ),
                     children: <TextSpan>[
                       TextSpan(
-                          text: '${userInputInHome}',
+                          text: '${userInputInHome.state}',
                           style: const TextStyle(
                               fontWeight: FontWeight.bold, color: Colors.red)),
                     ],
@@ -610,20 +621,40 @@ class _HomeState extends ConsumerState<Home> {
                 backgroundColor: MaterialStateProperty.all<Color>(Colors.green),
               ),
               onPressed: () async {
+                var userInputInHome = ref.read(userInputInHomeProvider);
                 final SharedPreferences prefs = await _prefs;
-                userInputInHome = (await Navigator.of(context)
+                userInputInHome.state = (await Navigator.of(context)
                     .push(dialogBuilderForIP(context)))!;
                 String _userInputInHome =
                     (prefs.getString('userInputInHome') ?? '');
                 setState(() {
-                  _userInputInHome = userInputInHome!;
+                  _userInputInHome = userInputInHome.state!;
                 });
                 prefs.setString('userInputInHome', _userInputInHome);
-                homeStream = WebSocketChannel.connect(
+                homeStream = await WebSocketChannel.connect(
                     Uri.parse('ws://${userInputInHome}:55200'));
               },
               child: const Text('Update server IP'),
             ),
+            ElevatedButton.icon(
+                style: ButtonStyle(
+                  backgroundColor: MaterialStateProperty.all<Color>(
+                      wakeLockStat ? Colors.blue : Colors.red),
+                ),
+                icon: wakeLockStat
+                    ? Icon(Icons.wb_incandescent)
+                    : Icon(Icons.wb_incandescent_outlined),
+                onPressed: () async {
+                  wakeLockStat = !wakeLockStat;
+                  if (!wakeLockStat)
+                    await Wakelock.enable();
+                  else
+                    await Wakelock.disable();
+                  print(wakeLockStat);
+                },
+                label: wakeLockStat
+                    ? const Text('Screen timeout: Off')
+                    : const Text('Screen timeout: On')),
             chatSender1 != 'No Data'
                 ? ReceivedMessageScreen(
                     chatSender: chatSender2,
@@ -702,8 +733,11 @@ class _HomeState extends ConsumerState<Home> {
     return AppBar(
       actions: [
         IconButton(
+          tooltip: 'Navigate to Stream screen',
           onPressed: () async {
             var state = ref.read(stateProvider);
+            var userInputInHome = ref.read(userInputInHomeProvider);
+
             state.state = 'image';
             phoneData = {
               'state': state.state,
@@ -713,7 +747,7 @@ class _HomeState extends ConsumerState<Home> {
             homeStream!.sink.add(jsonEncode(phoneData));
             Navigator.pushReplacementNamed(context, '/image', arguments: {
               'state': state.state,
-              'input': userInputInHome,
+              'input': userInputInHome.state,
               // 'server': server
             });
           },
@@ -731,7 +765,10 @@ class _HomeState extends ConsumerState<Home> {
     );
   }
 
-  String? userInputInHome;
+  StateProvider<String?> userInputInHomeProvider =
+      StateProvider<String?>((ref) {
+    return null;
+  });
   String? homeState;
   String phoneIP = '';
   var server;
@@ -767,6 +804,7 @@ class _HomeState extends ConsumerState<Home> {
   String? chatMessage2;
   bool? chatEnemy1;
   bool? chatEnemy2;
+  bool wakeLockStat = true;
   int? chatId1;
   int? chatId2;
   String? chatSender1;

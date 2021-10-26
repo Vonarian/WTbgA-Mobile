@@ -3,6 +3,7 @@
 import 'package:fijkplayer/fijkplayer.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wakelock/wakelock.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 import '../main.dart';
@@ -79,6 +80,8 @@ class _ImageStateState extends ConsumerState<ImageState> {
 
   @override
   void initState() {
+    super.initState();
+
     // _videoPlayerController = VlcPlayerController.network(
     //   'rtmp://192.168.43.8:1935',
     //   hwAcc: HwAcc.FULL,
@@ -91,15 +94,16 @@ class _ImageStateState extends ConsumerState<ImageState> {
       final arguments = ModalRoute.of(context)!.settings.arguments as Map;
       ipAdd = arguments['input'];
       state.state = arguments['state'];
-      player.setDataSource('rtmp://$ipAdd:1935', autoPlay: true);
+      player.setDataSource('rtmp://$ipAdd:1935',
+          autoPlay: true, showCover: true);
+      await Wakelock.enable();
     });
-
-    super.initState();
   }
 
   @override
   void dispose() {
     super.dispose();
+    player.dispose();
   }
 
   // Future<void> giveIps() async {
@@ -128,6 +132,7 @@ class _ImageStateState extends ConsumerState<ImageState> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       body: GestureDetector(
         onDoubleTap: () {
           var state = ref.read(stateProvider);

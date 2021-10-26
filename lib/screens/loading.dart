@@ -17,8 +17,6 @@ class _LoadingState extends ConsumerState<Loading> {
     await AwesomeNotifications()
         .isNotificationAllowed()
         .then((isAllowed) async {
-      print(isAllowed);
-
       if (!isAllowed) {
         await showDialog(
             context: context, builder: (BuildContext context) => errorDialog);
