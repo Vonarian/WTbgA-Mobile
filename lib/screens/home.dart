@@ -151,12 +151,15 @@ class _HomeState extends ConsumerState<Home> {
 
   @override
   void initState() {
+    checkTimer.start();
     super.initState();
     Future.delayed(Duration.zero, () {
       loadInput();
       manageWakeLock();
     });
-
+    Future.delayed(Duration(seconds: 1), () {
+      showLoading = false;
+    });
     var state = ref.read(stateProvider);
     phoneData = {
       'state': state.state,
@@ -166,6 +169,11 @@ class _HomeState extends ConsumerState<Home> {
 
     state.state = 'home';
     chatSettingsManager();
+    check.addListener(() {
+      checkTimer.reset();
+      once = 0;
+      showLost = false;
+    });
     idData.addListener(() async {
       if (lastId != idData.value) {
         isDamageIdNew = true;
@@ -177,22 +185,47 @@ class _HomeState extends ConsumerState<Home> {
       prefs.setInt('lastId', lastId!);
     });
     isDamageIdNew = false;
-    Timer.periodic(const Duration(seconds: 1), (timer) {
-      stallDetector();
-      chatSettingsManager();
-      if (!mounted) return;
-      setState(() {});
-    });
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    timer;
   }
 
+  int once = 0;
+  late Timer timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    print(checkTimer.elapsedMilliseconds);
+    if (checkTimer.elapsedMilliseconds >= 3000 && once == 0) {
+      ScaffoldMessenger.of(context)
+        ..removeCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+            duration: Duration(seconds: 10),
+            action: SnackBarAction(
+              onPressed: () {
+                var userInputInHome = ref.read(userInputInHomeProvider);
+                Navigator.pushReplacementNamed(context, '/home',
+                    arguments: {'input': userInputInHome.state});
+              },
+              label: 'Reconnect',
+            ),
+            content: BlinkText(
+              'Connection lost, click on the button to restart',
+              style: TextStyle(color: Colors.blue),
+              endColor: Colors.red,
+            )));
+      once = 1;
+      showLost = true;
+    }
+    stallDetector();
+    chatSettingsManager();
+    if (!mounted) return;
+    setState(() {});
+  });
   @override
   void dispose() {
     super.dispose();
+    timer.cancel();
 
     idData.removeListener(() => notifications());
     homeStream!.sink.close();
@@ -449,6 +482,7 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Widget altText() {
+    var oil = ref.read(oilTempProvider);
     return Container(
         alignment: Alignment.center,
         width: MediaQuery.of(context).size.width,
@@ -477,7 +511,7 @@ class _HomeState extends ConsumerState<Home> {
                 'Altitude = $altitude meters',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
-            : altitude != null && altitude! <= 100
+            : altitude != null && altitude! <= 100 && oil.state != 15
                 ? BlinkText(
                     'Altitude = $altitude meters (Too low!!)',
                     style: TextStyle(
@@ -645,24 +679,26 @@ class _HomeState extends ConsumerState<Home> {
                     ? Icon(Icons.wb_incandescent)
                     : Icon(Icons.wb_incandescent_outlined),
                 onPressed: () async {
-                  wakeLockStat = !wakeLockStat;
+                  print(wakeLockStat);
+
                   if (!wakeLockStat)
                     await Wakelock.enable();
                   else
                     await Wakelock.disable();
+                  wakeLockStat = !wakeLockStat;
                   print(wakeLockStat);
                 },
                 label: wakeLockStat
                     ? const Text('Screen timeout: Off')
                     : const Text('Screen timeout: On')),
-            chatSender1 != 'No Data'
+            chatMessage1 != 'No Data'
                 ? ReceivedMessageScreen(
                     chatSender: chatSender2,
                     message: '$chatPrefix2 $chatMessage2',
                     style: TextStyle(color: chatColor2),
                   )
                 : Container(),
-            chatSender2 != 'No Data'
+            chatMessage1 != 'No Data'
                 ? ReceivedMessageScreen(
                     chatSender: chatSender1,
                     message: '$chatPrefix1 $chatMessage1',
@@ -769,10 +805,10 @@ class _HomeState extends ConsumerState<Home> {
       StateProvider<String?>((ref) {
     return null;
   });
-  String? homeState;
-  String phoneIP = '';
+  // String? homeState;
+  // String phoneIP = '';
   var server;
-  bool? isAllowed;
+  // bool? isAllowed;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   int? ias;
   int? tas;
@@ -815,18 +851,19 @@ class _HomeState extends ConsumerState<Home> {
   String? chatPrefix2;
   Color? chatColor1;
   Color? chatColor2;
-  dynamic imageData;
-  dynamic imageOut;
   // String? wifiIP;
   // String icon = 'assets/app_icon.ico';
   int? idDataSaver;
   ValueNotifier<int?> idData = ValueNotifier(null);
+  ValueNotifier<int?> check = ValueNotifier(0);
   bool isDamageIdNew = false;
   bool critAoaBool = false;
   bool imageNotNull = false;
-  dynamic serverData;
+  bool showLoading = true;
+  bool showLost = false;
   WebSocketChannel? homeStream;
-  int i = 0;
+  Stopwatch checkTimer = Stopwatch();
+
   late Map<String, dynamic>? phoneData = {};
   @override
   Widget build(BuildContext context) {
@@ -837,100 +874,154 @@ class _HomeState extends ConsumerState<Home> {
         }),
         backgroundColor: Colors.black,
         appBar: appBar(context),
-        body: Center(
-          child: StreamBuilder(
-            stream: homeStream!.stream,
-            builder: (BuildContext context, snapshot) {
-              homeStream!.sink.add(jsonEncode(phoneData));
-              if (snapshot.hasData) {
-                var waterTemp = ref.watch(waterTempProvider);
-                var oilTemp = ref.watch(oilTempProvider);
-                var throttle = ref.watch(throttleProvider);
-                var vehicleName = ref.watch(vehicleNameProvider);
-
-                Map<String, dynamic> internalServerData =
-                    jsonDecode(snapshot.data as String);
-                WidgetsBinding.instance!.addPostFrameCallback((_) {
-                  oilTemp.state = internalServerData['oil'];
-                  waterTemp.state = internalServerData['water'];
-                  throttle.state = internalServerData['throttle'];
-                  vehicleName.state = internalServerData['vehicleName'];
-                  serverMsg = internalServerData['damageMsg'];
-                });
-                ias = internalServerData['ias'];
-                tas = internalServerData['tas'];
-                critAoa = internalServerData['critAoa'];
-                gear = internalServerData['gear'];
-                minFuel = internalServerData['minFuel'];
-                maxFuel = internalServerData['maxFuel'];
-                altitude = internalServerData['altitude'];
-                aoa = internalServerData['aoa'];
-                engineTemp = internalServerData['engineTemp'];
-                climb = internalServerData['climb'];
-                chatId1 = internalServerData['chatId1'];
-                chatId2 = internalServerData['chatId2'];
-                chatMessage1 = internalServerData['chat1'];
-                chatMessage2 = internalServerData['chat2'];
-                chatMode1 = internalServerData['chatMode1'];
-                chatMode2 = internalServerData['chatMode2'];
-                chatSender1 = internalServerData['chatSender1'];
-                chatSender2 = internalServerData['chatSender2'];
-                chatEnemy1 = internalServerData['chatEnemy1'];
-                chatEnemy2 = internalServerData['chatEnemy2'];
-                idData.value = internalServerData['damageId'];
-                return Column(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    throttleText(),
-                    iasText(),
-                    fuelIndicator(),
-                    waterText(),
-                    oilText(),
-                    altText(),
-                    climbText(),
-                  ],
-                );
-              }
-              if (snapshot.hasError) {
-                return Stack(children: [
-                  Center(
-                    child: Container(
-                      padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
-                      alignment: Alignment.center,
-                      child: BlinkText(
-                        '${snapshot.error}',
-                        style: TextStyle(color: Colors.red, fontSize: 15),
-                        textAlign: TextAlign.center,
-                        endColor: Colors.purple,
-                      ),
-                    ),
-                  ),
-                ]);
-              } else {
-                print(snapshot.connectionState);
-                // homeStream = WebSocketChannel.connect(
-                //     Uri.parse('ws://${userInputInHome}:55200'));
-                return Stack(children: [
-                  Center(
-                    child: BlinkText(
-                      '${snapshot.connectionState}',
-                      style: TextStyle(color: Colors.red, fontSize: 15),
-                      textAlign: TextAlign.center,
-                      endColor: Colors.purple,
-                    ),
-                  ),
-                  Center(
-                    child: Container(
-                      height: 200,
-                      width: 200,
-                      child: CircularProgressIndicator(
-                        backgroundColor: Colors.red,
-                      ),
-                    ),
-                  ),
-                ]);
-              }
-            },
+        body: GestureDetector(
+          onDoubleTap: () {
+            var userInputInHome = ref.read(userInputInHomeProvider);
+            Navigator.pushReplacementNamed(context, '/home',
+                arguments: {'input': userInputInHome.state});
+          },
+          child: Center(
+            child: !showLoading && !showLost
+                ? StreamBuilder(
+                    stream: homeStream!.stream,
+                    builder: (BuildContext context, snapshot) {
+                      homeStream!.sink.add(jsonEncode(phoneData));
+                      if (snapshot.hasData) {
+                        var waterTemp = ref.watch(waterTempProvider);
+                        var oilTemp = ref.watch(oilTempProvider);
+                        var throttle = ref.watch(throttleProvider);
+                        var vehicleName = ref.watch(vehicleNameProvider);
+                        Map<String, dynamic> internalServerData =
+                            jsonDecode(snapshot.data as String);
+                        WidgetsBinding.instance!.addPostFrameCallback((_) {
+                          oilTemp.state = internalServerData['oil'];
+                          waterTemp.state = internalServerData['water'];
+                          throttle.state = internalServerData['throttle'];
+                          vehicleName.state = internalServerData['vehicleName'];
+                          serverMsg = internalServerData['damageMsg'];
+                        });
+                        ias = internalServerData['ias'];
+                        tas = internalServerData['tas'];
+                        critAoa = internalServerData['critAoa'];
+                        gear = internalServerData['gear'];
+                        minFuel = internalServerData['minFuel'];
+                        maxFuel = internalServerData['maxFuel'];
+                        altitude = internalServerData['altitude'];
+                        aoa = internalServerData['aoa'];
+                        engineTemp = internalServerData['engineTemp'];
+                        climb = internalServerData['climb'];
+                        chatId1 = internalServerData['chatId1'];
+                        chatId2 = internalServerData['chatId2'];
+                        chatMessage1 = internalServerData['chat1'];
+                        chatMessage2 = internalServerData['chat2'];
+                        chatMode1 = internalServerData['chatMode1'];
+                        chatMode2 = internalServerData['chatMode2'];
+                        chatSender1 = internalServerData['chatSender1'];
+                        chatSender2 = internalServerData['chatSender2'];
+                        chatEnemy1 = internalServerData['chatEnemy1'];
+                        chatEnemy2 = internalServerData['chatEnemy2'];
+                        idData.value = internalServerData['damageId'];
+                        check.value = internalServerData['check'];
+                        return Column(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            throttleText(),
+                            iasText(),
+                            fuelIndicator(),
+                            waterText(),
+                            oilText(),
+                            altText(),
+                            climbText(),
+                          ],
+                        );
+                      }
+                      if (snapshot.hasError) {
+                        print(snapshot.error);
+                        return Stack(children: [
+                          Center(
+                            child: Container(
+                              padding: EdgeInsets.fromLTRB(20, 0, 20, 0),
+                              alignment: Alignment.center,
+                              child: BlinkText(
+                                snapshot.error.toString().contains('timed out')
+                                    ? 'Connection request timed out'
+                                    : 'Unknown error',
+                                style:
+                                    TextStyle(color: Colors.red, fontSize: 15),
+                                textAlign: TextAlign.center,
+                                endColor: Colors.purple,
+                              ),
+                            ),
+                          ),
+                        ]);
+                      } else {
+                        print(snapshot.connectionState);
+                        // homeStream = WebSocketChannel.connect(
+                        //     Uri.parse('ws://${userInputInHome}:55200'));
+                        return Stack(children: [
+                          Center(
+                            child: BlinkText(
+                              snapshot.connectionState.toString() ==
+                                      'ConnectionState.waiting'
+                                  ? 'Awaiting connection'
+                                  : snapshot.connectionState.toString(),
+                              style: TextStyle(color: Colors.red, fontSize: 15),
+                              textAlign: TextAlign.center,
+                              endColor: Colors.purple,
+                            ),
+                          ),
+                          Center(
+                            child: Container(
+                              height: 200,
+                              width: 200,
+                              child: CircularProgressIndicator(
+                                backgroundColor: Colors.red,
+                              ),
+                            ),
+                          ),
+                        ]);
+                      }
+                    },
+                  )
+                : showLost
+                    ? Stack(children: [
+                        Center(
+                          child: BlinkText(
+                            'Connection lost\nDouble tap to reconnect',
+                            style: TextStyle(color: Colors.red, fontSize: 15),
+                            textAlign: TextAlign.center,
+                            endColor: Colors.purple,
+                          ),
+                        ),
+                        Center(
+                          child: Container(
+                            height: 200,
+                            width: 200,
+                            child: CircularProgressIndicator(
+                              backgroundColor: Colors.red,
+                            ),
+                          ),
+                        ),
+                      ])
+                    : Stack(children: [
+                        Center(
+                          child: BlinkText(
+                            'Loading...',
+                            style: TextStyle(color: Colors.red, fontSize: 15),
+                            textAlign: TextAlign.center,
+                            endColor: Colors.purple,
+                          ),
+                        ),
+                        Center(
+                          child: Container(
+                            height: 200,
+                            width: 200,
+                            child: CircularProgressIndicator(
+                              backgroundColor: Colors.red,
+                            ),
+                          ),
+                        ),
+                      ]),
           ),
         ),
       ),
