@@ -255,7 +255,6 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Widget waterText() {
-    var waterTemp = ref.watch(waterTempProvider);
     return Container(
         alignment: Alignment.center,
         width: MediaQuery.of(context).size.width,
@@ -279,9 +278,9 @@ class _HomeState extends ConsumerState<Home> {
                 offset: const Offset(0, 3),
               )
             ]),
-        child: waterTemp.state != null
+        child: waterTemp != null
             ? Text(
-                'Water Temp = ${waterTemp.state} degrees',
+                'Water Temp = ${waterTemp} degrees',
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
@@ -449,8 +448,10 @@ class _HomeState extends ConsumerState<Home> {
                   ));
   }
 
-  static Route<String> dialogBuilderForIP(BuildContext context) {
-    late TextEditingController userInput = TextEditingController();
+  static Route<String> dialogBuilderForIP(
+      BuildContext context, String? userInputInHome) {
+    late TextEditingController userInput =
+        TextEditingController(text: userInputInHome);
     return DialogRoute(
       context: context,
       builder: (BuildContext context) => AlertDialog(
@@ -482,7 +483,6 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Widget altText() {
-    var oil = ref.read(oilTempProvider);
     return Container(
         alignment: Alignment.center,
         width: MediaQuery.of(context).size.width,
@@ -511,7 +511,7 @@ class _HomeState extends ConsumerState<Home> {
                 'Altitude = $altitude meters',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
-            : altitude != null && altitude! <= 100 && oil.state != 15
+            : altitude != null && altitude! <= 100 && oilTemp != 15
                 ? BlinkText(
                     'Altitude = $altitude meters (Too low!!)',
                     style: TextStyle(
@@ -527,7 +527,6 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Widget oilText() {
-    var oilTemp = ref.watch(oilTempProvider);
     return Container(
         alignment: Alignment.center,
         width: MediaQuery.of(context).size.width,
@@ -551,9 +550,9 @@ class _HomeState extends ConsumerState<Home> {
                 offset: const Offset(0, 3),
               )
             ]),
-        child: oilTemp.state != null
+        child: oilTemp != null
             ? Text(
-                'Oil Temp = ${oilTemp.state} degrees',
+                'Oil Temp = ${oilTemp} degrees',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
             : Text(
@@ -563,10 +562,9 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Widget fuelIndicator() {
-    var fuelPercent = ref.watch(fuelPercentProvider);
     Timer.periodic(Duration.zero, (timer) {
       if (minFuel != null && maxFuel != null) {
-        fuelPercent.state = (minFuel! / maxFuel!) * 100;
+        fuelPercent = (minFuel! / maxFuel!) * 100;
       }
     });
 
@@ -593,18 +591,18 @@ class _HomeState extends ConsumerState<Home> {
                 offset: const Offset(0, 3),
               )
             ]),
-        child: minFuel != null && fuelPercent.state! >= 15.00
+        child: minFuel != null && fuelPercent! >= 15.00
             ? Text(
-                'Remaining Fuel = ${fuelPercent.state!.toStringAsFixed(0)}%',
+                'Remaining Fuel = ${fuelPercent!.toStringAsFixed(0)}%',
                 textAlign: TextAlign.center,
                 style:
                     const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
               )
             : minFuel != null &&
-                    fuelPercent.state! < 15.00 &&
+                    fuelPercent! < 15.00 &&
                     (altitude != 32 && minFuel != 0)
                 ? BlinkText(
-                    'Remaining Fuel = ${fuelPercent.state!.toStringAsFixed(0)}%',
+                    'Remaining Fuel = ${fuelPercent!.toStringAsFixed(0)}%',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                         fontWeight: FontWeight.bold, fontSize: 20),
@@ -658,7 +656,7 @@ class _HomeState extends ConsumerState<Home> {
                 var userInputInHome = ref.read(userInputInHomeProvider);
                 final SharedPreferences prefs = await _prefs;
                 userInputInHome.state = (await Navigator.of(context)
-                    .push(dialogBuilderForIP(context)))!;
+                    .push(dialogBuilderForIP(context, userInputInHome.state)))!;
                 String _userInputInHome =
                     (prefs.getString('userInputInHome') ?? '');
                 setState(() {
@@ -764,8 +762,6 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   PreferredSizeWidget appBar(BuildContext context) {
-    var vehicleName = ref.watch(vehicleNameProvider);
-
     return AppBar(
       actions: [
         IconButton(
@@ -792,9 +788,9 @@ class _HomeState extends ConsumerState<Home> {
       ],
       backgroundColor: Colors.black45,
       centerTitle: true,
-      title: vehicleName.state != 'NULL' && vehicleName.state != null
+      title: vehicleName != 'NULL' && vehicleName != null
           ? Text(
-              'You are flying ${vehicleName.state}',
+              'You are flying ${vehicleName}',
               style: const TextStyle(fontSize: 18),
             )
           : Text('You are not flying'),
@@ -816,18 +812,11 @@ class _HomeState extends ConsumerState<Home> {
   double? critAoa;
   double? aoa;
   double? engineTemp;
-  StateProvider<double?> fuelPercentProvider = StateProvider<double?>((ref) {
-    return 100;
-  });
+  double? fuelPercent;
   StateProvider<double?> throttleProvider = StateProvider<double?>((ref) {
     return null;
   });
-  StateProvider<int?> oilTempProvider = StateProvider<int?>((ref) {
-    return null;
-  });
-  StateProvider<int?> waterTempProvider = StateProvider<int?>((ref) {
-    return null;
-  });
+
   int? altitude;
   int? minFuel;
   int? maxFuel;
@@ -835,7 +824,6 @@ class _HomeState extends ConsumerState<Home> {
   int? lastId;
   String? emptyString = 'No Data';
   String? serverMsg;
-  var vehicleNameProvider = StateProvider<String?>((ref) => null);
   String? chatMessage1;
   String? chatMessage2;
   bool? chatEnemy1;
@@ -843,6 +831,9 @@ class _HomeState extends ConsumerState<Home> {
   bool wakeLockStat = true;
   int? chatId1;
   int? chatId2;
+  int? waterTemp;
+  int? oilTemp;
+  String? vehicleName;
   String? chatSender1;
   String? chatSender2;
   String? chatMode1;
@@ -887,19 +878,16 @@ class _HomeState extends ConsumerState<Home> {
                     builder: (BuildContext context, snapshot) {
                       homeStream!.sink.add(jsonEncode(phoneData));
                       if (snapshot.hasData) {
-                        var waterTemp = ref.watch(waterTempProvider);
-                        var oilTemp = ref.watch(oilTempProvider);
                         var throttle = ref.watch(throttleProvider);
-                        var vehicleName = ref.watch(vehicleNameProvider);
                         Map<String, dynamic> internalServerData =
                             jsonDecode(snapshot.data as String);
                         WidgetsBinding.instance!.addPostFrameCallback((_) {
-                          oilTemp.state = internalServerData['oil'];
-                          waterTemp.state = internalServerData['water'];
                           throttle.state = internalServerData['throttle'];
-                          vehicleName.state = internalServerData['vehicleName'];
-                          serverMsg = internalServerData['damageMsg'];
                         });
+                        oilTemp = internalServerData['oil'];
+                        waterTemp = internalServerData['water'];
+                        vehicleName = internalServerData['vehicleName'];
+                        serverMsg = internalServerData['damageMsg'];
                         ias = internalServerData['ias'];
                         tas = internalServerData['tas'];
                         critAoa = internalServerData['critAoa'];
@@ -987,7 +975,7 @@ class _HomeState extends ConsumerState<Home> {
                     ? Stack(children: [
                         Center(
                           child: BlinkText(
-                            'Connection lost\nDouble tap to reconnect',
+                            'No connection\nDouble tap to reconnect',
                             style: TextStyle(color: Colors.red, fontSize: 15),
                             textAlign: TextAlign.center,
                             endColor: Colors.purple,
