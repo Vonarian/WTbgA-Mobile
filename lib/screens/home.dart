@@ -129,7 +129,7 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Future<void> loadInput() async {
-    var userInputInHome = ref.read(userInputInHomeProvider);
+    var userInputInHome = ref.read(userInputInHomeProvider.notifier);
 
     // WidgetsBinding.instance!.addPostFrameCallback((_) async {
     final arguments = ModalRoute.of(context)!.settings.arguments as Map;
@@ -151,23 +151,23 @@ class _HomeState extends ConsumerState<Home> {
 
   @override
   void initState() {
-    checkTimer.start();
     super.initState();
-    Future.delayed(Duration.zero, () {
-      loadInput();
+    checkTimer.start();
+    Future.delayed(Duration.zero, () async {
+      await loadInput();
       manageWakeLock();
     });
-    Future.delayed(Duration(seconds: 1), () {
+    Future.delayed(Duration(milliseconds: 500), () {
       showLoading = false;
     });
-    var state = ref.read(stateProvider);
+    var state = ref.read(stateProvider.notifier);
+
+    state.state = 'home';
     phoneData = {
       'state': state.state,
       'WTbgA': true,
       'startStream': false,
     };
-
-    state.state = 'home';
     chatSettingsManager();
     check.addListener(() {
       checkTimer.reset();
@@ -203,7 +203,8 @@ class _HomeState extends ConsumerState<Home> {
             duration: Duration(seconds: 10),
             action: SnackBarAction(
               onPressed: () {
-                var userInputInHome = ref.read(userInputInHomeProvider);
+                var userInputInHome =
+                    ref.read(userInputInHomeProvider.notifier);
                 Navigator.pushReplacementNamed(context, '/home',
                     arguments: {'input': userInputInHome.state});
               },
@@ -291,7 +292,7 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Widget throttleText() {
-    var throttle = ref.watch(throttleProvider);
+    var throttle = ref.watch(throttleProvider.notifier);
     // print(throttle.state);
     return Container(
         alignment: Alignment.center,
@@ -567,7 +568,6 @@ class _HomeState extends ConsumerState<Home> {
         fuelPercent = (minFuel! / maxFuel!) * 100;
       }
     });
-
     return Container(
         alignment: Alignment.center,
         width: MediaQuery.of(context).size.width,
@@ -615,7 +615,7 @@ class _HomeState extends ConsumerState<Home> {
   }
 
   Widget drawerBuilder() {
-    var userInputInHome = ref.read(userInputInHomeProvider);
+    var userInputInHome = ref.read(userInputInHomeProvider.notifier);
     return Drawer(
       child: Container(
         color: Colors.black45,
@@ -653,7 +653,8 @@ class _HomeState extends ConsumerState<Home> {
                 backgroundColor: MaterialStateProperty.all<Color>(Colors.green),
               ),
               onPressed: () async {
-                var userInputInHome = ref.read(userInputInHomeProvider);
+                var userInputInHome =
+                    ref.read(userInputInHomeProvider.notifier);
                 final SharedPreferences prefs = await _prefs;
                 userInputInHome.state = (await Navigator.of(context)
                     .push(dialogBuilderForIP(context, userInputInHome.state)))!;
@@ -664,7 +665,7 @@ class _HomeState extends ConsumerState<Home> {
                 });
                 prefs.setString('userInputInHome', _userInputInHome);
                 homeStream = await WebSocketChannel.connect(
-                    Uri.parse('ws://${userInputInHome}:55200'));
+                    Uri.parse('ws://${userInputInHome.state}:55200'));
               },
               child: const Text('Update server IP'),
             ),
@@ -767,15 +768,11 @@ class _HomeState extends ConsumerState<Home> {
         IconButton(
           tooltip: 'Navigate to Stream screen',
           onPressed: () async {
-            var state = ref.read(stateProvider);
-            var userInputInHome = ref.read(userInputInHomeProvider);
+            var state = ref.read(stateProvider.notifier);
+            var userInputInHome = ref.read(userInputInHomeProvider.notifier);
 
             state.state = 'image';
-            phoneData = {
-              'state': state.state,
-              'WTbgA': true,
-              'startStream': true
-            };
+            phoneData = {'state': state, 'WTbgA': true, 'startStream': true};
             homeStream!.sink.add(jsonEncode(phoneData));
             Navigator.pushReplacementNamed(context, '/image', arguments: {
               'state': state.state,
@@ -803,7 +800,6 @@ class _HomeState extends ConsumerState<Home> {
   });
   // String? homeState;
   // String phoneIP = '';
-  var server;
   // bool? isAllowed;
   final Future<SharedPreferences> _prefs = SharedPreferences.getInstance();
   int? ias;
@@ -812,7 +808,7 @@ class _HomeState extends ConsumerState<Home> {
   double? critAoa;
   double? aoa;
   double? engineTemp;
-  double? fuelPercent;
+  double? fuelPercent = 000;
   StateProvider<double?> throttleProvider = StateProvider<double?>((ref) {
     return null;
   });
@@ -867,7 +863,7 @@ class _HomeState extends ConsumerState<Home> {
         appBar: appBar(context),
         body: GestureDetector(
           onDoubleTap: () {
-            var userInputInHome = ref.read(userInputInHomeProvider);
+            var userInputInHome = ref.read(userInputInHomeProvider.notifier);
             Navigator.pushReplacementNamed(context, '/home',
                 arguments: {'input': userInputInHome.state});
           },
@@ -878,7 +874,7 @@ class _HomeState extends ConsumerState<Home> {
                     builder: (BuildContext context, snapshot) {
                       homeStream!.sink.add(jsonEncode(phoneData));
                       if (snapshot.hasData) {
-                        var throttle = ref.watch(throttleProvider);
+                        var throttle = ref.watch(throttleProvider.notifier);
                         Map<String, dynamic> internalServerData =
                             jsonDecode(snapshot.data as String);
                         WidgetsBinding.instance!.addPostFrameCallback((_) {

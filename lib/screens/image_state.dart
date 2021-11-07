@@ -88,12 +88,13 @@ class _ImageStateState extends ConsumerState<ImageState> {
     //   autoPlay: true,
     //   options: VlcPlayerOptions(),
     // );
-    var state = ref.read(stateProvider);
+    var state = ref.read(stateProvider.notifier);
     if (!mounted) return;
     WidgetsBinding.instance!.addPostFrameCallback((_) async {
       final arguments = ModalRoute.of(context)!.settings.arguments as Map;
       ipAdd = arguments['input'];
       state.state = arguments['state'];
+      ;
       player.setDataSource('rtmp://$ipAdd:1935',
           autoPlay: true, showCover: true);
       await Wakelock.enable();
@@ -136,9 +137,9 @@ class _ImageStateState extends ConsumerState<ImageState> {
       body: GestureDetector(
         onDoubleTap: () {
           var state = ref.read(stateProvider);
-          state.state = 'home';
+          state = 'home';
           Navigator.pushReplacementNamed(context, '/home',
-              arguments: {'input': ipAdd, 'state': state.state});
+              arguments: {'input': ipAdd, 'state': state});
         },
         child: SafeArea(
           child: InteractiveViewer(
